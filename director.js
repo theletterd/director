@@ -2,12 +2,12 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-console.log(scenes);
 
 async function main(document) {
 	screen = $('#screen');
 
 	for (const scene of scenes) {
+		console.log(scene.text);
 		scene_element = $(document.createElement('div'));
 		scene_element.append(scene.text);
 		scene_element.hide().appendTo(screen);
@@ -15,15 +15,28 @@ async function main(document) {
 
 		arrival = scene.arrive;
 		// arrival
-		if scene.transition === "fadeIn") {
-			scene_element.fadeIn(arrival.duration);
+		if (arrival.transition == "fade") {
+		    scene_element.fadeIn(arrival.duration);
+	    } else if (arrival.transition == "show" ) {
+			scene_element.show();
+		} else {
+			scene_element.show();
 		}
 
-		// dwell
-		await sleep(scene.delay);
 
-		//departure = scene.depart;
+		// dwell
+		await sleep(scene.dwell);
+
 		// departure
+		departure = scene.depart;
+		if (departure.transition === "fade") {
+		    scene_element.fadeOut(departure.duration);
+			await sleep(departure.duration);
+	    } else if (departure.transition === "hide" ) {
+			scene_element.remove();
+		} else {
+			scene_element.remove();
+		}
 
 	}
 
@@ -31,6 +44,5 @@ async function main(document) {
 
 
 $(document).ready(function(){
-
 	main(document);
 });

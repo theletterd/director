@@ -1,26 +1,44 @@
 var scenes = [
 	{
 		text: ".",
-		delay: 1000,
 		arrive: {
-			transition: "fadeIn",
+			transition: "fade",
 			duration: 600
 		},
+		dwell: 1000,
+		depart: {
+			transition: "fade",
+			duration: 600,
+			remove: true,
+		}
 	},
 	{
 		text: "What am I?",
-		delay: 1000,
+		dwell: 1000,
 		arrive: {
-			transition: "fadeIn",
+			transition: "fade",
 			duration: 600
 		},
+		dwell: 1000,
+		depart: {
+			transition: "fade",
+			duration: 600,
+			remove: true,
+		}
+
 	},
 	{
 		text: "Where did I come from?",
-		delay: 1000,
 		arrive: {
-			transition: "fadeIn",
+			transition: "show",
 			duration: 600
 		},
+		dwell: 1000,
+		depart: {
+			transition: "fade",
+			duration: 600,
+			remove: true,
+		}
+
 	}
 ];
