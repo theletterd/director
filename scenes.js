@@ -3,9 +3,9 @@ var scenes = [
 		text: ".",
 		arrive: {
 			transition: "fade",
-			duration: 600
+			duration: 1000
 		},
-		dwell: 1000,
+		dwell: 2000,
 		depart: {
 			transition: "fade",
 			duration: 600,
@@ -14,15 +14,14 @@ var scenes = [
 	},
 	{
 		text: "What am I?",
-		dwell: 1000,
 		arrive: {
 			transition: "fade",
-			duration: 600
+			duration: 1000
 		},
-		dwell: 1000,
+		dwell: 2000,
 		depart: {
 			transition: "fade",
-			duration: 600,
+			duration: 1000,
 			remove: true,
 		}
 
@@ -30,15 +29,30 @@ var scenes = [
 	{
 		text: "Where did I come from?",
 		arrive: {
-			transition: "show",
-			duration: 600
+			transition: "fade",
+			duration: 1000
 		},
-		dwell: 1000,
+		dwell: 2000,
 		depart: {
 			transition: "fade",
-			duration: 600,
+			duration: 1000,
+			remove: true,
+		}
+
+	},
+		{
+		text: "This seems like a dream, but I'm not sure it actually is.",
+		arrive: {
+			transition: "type",
+			ms_per_char: 20,
+		},
+		dwell: 4000,
+		depart: {
+			transition: "fade",
+			duration: 1000,
 			remove: true,
 		}
 
 	}
+
 ];

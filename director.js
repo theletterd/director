@@ -19,6 +19,15 @@ async function main(document) {
 		    scene_element.fadeIn(arrival.duration);
 	    } else if (arrival.transition == "show" ) {
 			scene_element.show();
+	    } else if (arrival.transition == "type" ) {
+			scene_element.show();
+			text = scene.text;
+			scene_element.empty();
+			for (const character of text) {
+				scene_element.append(character);
+				await sleep(arrival.ms_per_char);
+			}
+
 		} else {
 			scene_element.show();
 		}
