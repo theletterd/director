@@ -6,4 +6,15 @@ div {
 	min-height: 18px;
 	line-height: 18px;
 	display: block;
+
+}
+
+#screen * {
+	font-size: 16px;
+	font-family: monospace;
+}
+
+#screen {
+	width:80%;
+	margin: 100px auto;
 }

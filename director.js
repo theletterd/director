@@ -10,6 +10,9 @@ async function main(document) {
 		if ("directive" in scene) {
 			if (scene.directive === "clear") {
 				$("#screen").empty();
+			} else if (scene.directive === "blankline"){
+				scene_element = $(document.createElement('div'));
+				scene_element.appendTo(screen);
 			}
 			continue;
 		}
