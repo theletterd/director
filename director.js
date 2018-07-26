@@ -13,6 +13,12 @@ async function main(document) {
 			} else if (scene.directive === "blankline"){
 				scene_element = $(document.createElement('div'));
 				scene_element.appendTo(screen);
+			} else if (scene.directive === "fade_all"){
+				$("#screen div").fadeOut(2000, function(){
+					$("#screen div:hidden").remove();
+				});
+				await sleep(2000);
+
 			}
 			continue;
 		}
