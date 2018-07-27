@@ -180,20 +180,18 @@ var scenes = [
 		}
 
 	},
+	{directive: "fade_all"},
 	{
-		directive: "fade_all"
-	},
-	{
-		text: "...and we begin again.",
+		text: "What am I?",
 		arrive: {
 			transition: "fade",
-			duration: 3000,
+			duration: 2000
 		},
 		dwell: 2000,
 		depart: {
 			transition: "fade",
-			duration: 3000,
-			remove: true
+			duration: 1000,
+			remove: true,
 		}
 	},
 	{directive: "fade_all"},
@@ -221,5 +219,19 @@ var scenes = [
 			frame_length_ms: 50
 		}
 	},
-	{directive: "fade_all"}
+	{directive: "fade_all"},
+	{
+		text: "...and we begin again.",
+		arrive: {
+			transition: "fade",
+			duration: 3000,
+		},
+		dwell: 2000,
+		depart: {
+			transition: "fade",
+			duration: 3000,
+			remove: true
+		}
+	},
+	{directive: "fade_all"},
 ];
