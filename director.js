@@ -2,7 +2,6 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-
 async function main(document) {
 	screen = $('#screen');
 
@@ -18,7 +17,6 @@ async function main(document) {
 					$("#screen div:hidden").remove();
 				});
 				await sleep(2000);
-
 			}
 			continue;
 		}
@@ -43,7 +41,6 @@ async function main(document) {
 				scene_element.append(character);
 				await sleep(arrival.ms_per_char);
 			}
-
 		} else {
 			scene_element.show();
 		}
@@ -61,10 +58,8 @@ async function main(document) {
 					setTimeout(animation_func, scene.animation.frame_length_ms, frames, next_frame, that);
 				}
 			};
-
 			animation_func(scene.animation.frames, 0, that);
 		}
-
 
 		// dwell
 		await sleep(scene.dwell);
@@ -80,6 +75,7 @@ async function main(document) {
 				scene_element.fadeOut(departure.duration, function() {
 					that.remove();
 				});
+				await sleep(departure.duration);
 			}
 		} else {
 			if (departure.transition === "hide") {
@@ -91,15 +87,13 @@ async function main(document) {
 					that.show();
 					that.empty();
 				});
+				await sleep(departure.duration);
 			} else if (departure.transition === "keep") {
 				continue;
 			}
-
 		}
 	}
-
 }
-
 
 $(document).ready(function(){
 	main(document);

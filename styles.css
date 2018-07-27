@@ -3,15 +3,15 @@ body {
 }
 
 div {
-	min-height: 18px;
-	line-height: 18px;
+	min-height: 20px;
+	line-height: 20px;
 	display: block;
 	white-space: pre;
 
 }
 
 #screen * {
-	font-size: 16px;
+	font-size: 18px;
 	font-family: monospace;
 }
 

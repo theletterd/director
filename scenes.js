@@ -1,5 +1,22 @@
 var scenes = [
 	{
+		text: "",
+		arrive: {
+			transition: "fade",
+			duration: 2000,
+		},
+		dwell: 5000,
+		depart: {
+			transition: "fade",
+			duration: 4000,
+			remove: true,
+		},
+		animation: {
+			frames: mountain_frames,
+			frame_length_ms: 500
+		}
+	},
+	{
 		text: "...",
 		arrive: {
 			transition: "type",
