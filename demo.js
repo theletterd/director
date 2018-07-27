@@ -1,5 +1,4 @@
 var scenes = [
-	/*
 	{
 		text: story_director,
 		arrive: {
@@ -75,9 +74,9 @@ var scenes = [
 		text: "I was looking for a way to tell stories in a simple, but compelling way...",
 		arrive: {
 			transition: "fade",
-			duration: 2000
+			duration: 1000
 		},
-		dwell: 3000,
+		dwell: 2000,
 		depart: {
 			transition: "keep",
 		}
@@ -87,7 +86,7 @@ var scenes = [
 		text: "So I built this!",
 		arrive: {
 			transition: "fade",
-			duration: 2000
+			duration: 1000
 		},
 		dwell: 2000,
 		depart: {
@@ -100,7 +99,7 @@ var scenes = [
 		text: "StoryDirector - A limited toolkit for telling stories which gives you fine-grained control over things like...",
 		arrive: {
 			transition: "type",
-			ms_per_char: 50,
+			ms_per_char: 25,
 		},
 		dwell: 2000,
 		depart: {
@@ -193,34 +192,6 @@ var scenes = [
 		animation: {
 			frames: boat_frames,
 			frame_length_ms: 70
-		}
-	},
-	{directive: "clear"},
-	{
-		text: "...or this:",
-		arrive: {
-			transition: "show"
-		},
-		dwell: 1000,
-		depart: {
-			transition: "keep"
-		}
-	},
-	{
-		text: "",
-		arrive: {
-			transition: "fade",
-			duration: 2000,
-		},
-		dwell: 5000,
-		depart: {
-			transition: "keep",
-			duration: 2000,
-			remove: false,
-		},
-		animation: {
-			frames: mountain_frames,
-			frame_length_ms: 150
 		}
 	},
 	{
@@ -438,7 +409,6 @@ var scenes = [
 		}
 	},
 	{directive: "clear"},
-	*/
 	{
 		text: "GOOD QUESTION!" ,
 		arrive: {
@@ -564,6 +534,8 @@ var scenes = [
 			remove: false,
 		}
 	},
+	{directive: "clear"},
+	// talk about animation
 	{
 		text: "         ...slightly more interesting.",
 		arrive: {
@@ -578,7 +550,199 @@ var scenes = [
 		}
 	},
 	{directive: "clear"},
-	// talk about animation
-
+	{
+		text: "",
+		arrive: {
+			transition: "fade",
+			duration: 1000,
+		},
+		dwell: 3000,
+		depart: {
+			transition: "keep",
+		},
+		animation: {
+			frames: animation_frames,
+			frame_length_ms: 150
+		}
+	},
+	{directive: "blankline"},
+	{directive: "blankline"},
+	{directive: "blankline"},
+	{
+		text: "Animations are defined pretty simply too - you just need an 'animation' element\n\
+which defines the frames, and the number of milliseconds per frame.\n\ne.g.:",
+		arrive: {
+			transition: "type",
+			ms_per_char: 25,
+		},
+		dwell: 2000,
+		depart: {
+			transition: "keep",
+		}
+	},
+	{directive: "blankline"},
+	{
+		text: "\
+{\n\
+	text: \"\",\n\
+	arrive: {\n\
+		transition: \"show\",\n\
+	},\n\
+	dwell: 3000,\n\
+	depart: {\n\
+		transition: \"keep\",\n\
+	},\n\
+	animation: {\n\
+		frames: [\"\\\\o\\\\\", \"|o|\", \"/o/\", \"|o|\"],\n\
+		frame_length_ms: 75\n\
+	}\n\
+}\n\
+",
+		arrive: {
+			transition: "fade",
+			duration: 2000
+		},
+		dwell: 4000,
+		depart: {
+			transition: "keep",
+		},
+	},
+	{directive: "blankline"},
+	{directive: "blankline"},
+	{
+		text: "",
+		arrive: {
+			transition: "show",
+		},
+		dwell: 3000,
+		depart: {
+			transition: "keep",
+		},
+		animation: {
+			frames: ["\\o\\", "|o|", "/o/", "|o|"],
+			frame_length_ms: 75
+		}
+	},
+	{directive: "blankline"},
+	{
+		text: "EASY!",
+		arrive: {
+			transition: "show",
+		},
+		dwell: 3000,
+		depart: {
+			transition: "keep",
+		}
+	},
+	{directive: "fade_all"},
 	// talk about directives
+	{
+		text: "And lastly, for ease of use, there are some directives:",
+		arrive: {
+			transition: "type",
+			ms_per_char: 25
+		},
+		dwell: 2000,
+		depart: {
+			transition: "keep",
+		}
+	},
+	{directive: "blankline"},
+	{directive: "blankline"},
+	{
+		text: "{directive: \"blankline\"}",
+		arrive: {
+			transition: "type",
+			ms_per_char: 25
+		},
+		dwell: 1000,
+		depart: {
+			transition: "keep",
+		}
+	},
+	{
+		text: "* shorthand for inserting a blank line",
+		arrive: {
+			transition: "fade",
+			duration: 500
+		},
+		dwell: 2000,
+		depart: {
+			transition: "keep",
+		}
+	},
+	{directive: "blankline"},
+	{directive: "blankline"},
+	{
+		text: "{directive: \"clear\"}",
+		arrive: {
+			transition: "type",
+			ms_per_char: 25
+		},
+		dwell: 1000,
+		depart: {
+			transition: "keep",
+		}
+	},
+	{
+		text: "* removes everything from the screen immediately",
+		arrive: {
+			transition: "fade",
+			duration: 500
+		},
+		dwell: 2000,
+		depart: {
+			transition: "keep",
+		}
+	},
+	{directive: "blankline"},
+	{directive: "blankline"},
+	{
+		text: "{directive: \"fade_all\"}",
+		arrive: {
+			transition: "type",
+			ms_per_char: 25
+		},
+		dwell: 1000,
+		depart: {
+			transition: "keep",
+		}
+	},
+	{
+		text: "* also removes everything from the screen, but using a fade",
+		arrive: {
+			transition: "fade",
+			duration: 500
+		},
+		dwell: 2000,
+		depart: {
+			transition: "keep",
+		}
+	},
+	{directive: "fade_all"},
+
+	{
+		text: "That's all!!!",
+		arrive: {
+			transition: "fade",
+			duration: 500
+		},
+		dwell: 500,
+		depart: {
+			transition: "keep",
+		}
+	},
+	{
+		text: "Thanks for reading :)",
+		arrive: {
+			transition: "fade",
+			duration: 500
+		},
+		dwell: 4000,
+		depart: {
+			transition: "keep",
+		}
+	},
+	{directive: "clear"}
+
 ];

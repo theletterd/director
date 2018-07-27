@@ -93,6 +93,7 @@ async function main(document) {
 			}
 		}
 	}
+	main(document);
 }
 
 $(document).ready(function(){
