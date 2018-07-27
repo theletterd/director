@@ -198,20 +198,28 @@ var scenes = [
 	},
 	{directive: "fade_all"},
 	{
+		text: "I AM A DINOSAUR!",
+		arrive: {
+			transition: "show",
+		},
+		dwell: 0,
+		depart: {
+			transition: "keep",
+		}
+	},
+	{
 		text: "",
 		arrive: {
 			transition: "show",
 		},
 		dwell: 5000,
 		depart: {
-			transition: "fade",
-			duration: 4000,
-			remove: true,
+			transition: "keep",
 		},
 		animation: {
 			frames: dinosaur_frames,
-			frame_length_ms: 100
+			frame_length_ms: 50
 		}
 	},
-	{directive: "clear"}
+	{directive: "fade_all"}
 ];
