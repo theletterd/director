@@ -9,13 +9,14 @@ var scenes = [
 		depart: {
 			transition: "fade",
 			duration: 4000,
-			remove: true,
+			remove: false,
 		},
 		animation: {
 			frames: mountain_frames,
 			frame_length_ms: 500
 		}
 	},
+	{directive: "clear"},
 	{
 		text: "...",
 		arrive: {
@@ -44,7 +45,7 @@ var scenes = [
 
 	},
 	{
-		text: "Where did I come from?",
+		text: "   Where did I come from?",
 		arrive: {
 			transition: "fade",
 			duration: 2000
@@ -57,6 +58,22 @@ var scenes = [
 		}
 
 	},
+
+	{
+		text: "Is this a dream?",
+		arrive: {
+			transition: "fade",
+			duration: 2000
+		},
+		dwell: 2000,
+		depart: {
+			transition: "fade",
+			duration: 1000,
+			remove: false,
+		}
+
+	},
+	{directive: "fade_all"},
 	{
 		text: "This seems like a dream, but I'm not sure it actually is.",
 		arrive: {
@@ -178,6 +195,23 @@ var scenes = [
 			duration: 3000,
 			remove: true
 		}
-	}
-
+	},
+	{directive: "fade_all"},
+	{
+		text: "",
+		arrive: {
+			transition: "show",
+		},
+		dwell: 5000,
+		depart: {
+			transition: "fade",
+			duration: 4000,
+			remove: true,
+		},
+		animation: {
+			frames: dinosaur_frames,
+			frame_length_ms: 100
+		}
+	},
+	{directive: "clear"}
 ];
