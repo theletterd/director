@@ -628,20 +628,20 @@ class SceneHandler {
 
     restartScenes() {
         logger.info("[Scene] Restarting scenes");
+        const currentIndex = this.currentSceneIndex; // Store current index
         this.stop(); // Stop current playback and clear audio
         this.screen.empty(); // Clear the screen
-        this.currentSceneIndex = 0; // Reset scene index
         if (this.scenes) {
-            // If audio is allowed, play scenes immediately
+            // If audio is allowed, play scenes from current index
             if (this.audioHandler.isAudioAllowed) {
-                this.playScenes(this.scenes);
+                this.playScenes(this.scenes, currentIndex);
             } else {
                 // If audio is not allowed, queue the first scene's audio
                 const firstScene = this.scenes[0];
                 if (firstScene && firstScene.arrive && firstScene.arrive.audio) {
                     this.audioHandler.handleAudio(firstScene.arrive.audio);
                 }
-                this.playScenes(this.scenes);
+                this.playScenes(this.scenes, currentIndex);
             }
         }
     }

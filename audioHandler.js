@@ -152,11 +152,11 @@ class AudioHandler {
 
             // Handle fade in
             if (options.fadeIn) {
-                logger.debug(`[Audio] Setting up fade in for track ${trackId} over ${options.fadeIn}s`);
+                logger.debug(`[Audio] Setting up fade in for track ${trackId} over ${options.fadeIn}ms`);
                 gainNode.gain.value = 0;
                 gainNode.gain.linearRampToValueAtTime(
                     volume,
-                    this.audioContext.currentTime + options.fadeIn
+                    this.audioContext.currentTime + (options.fadeIn / 1000)
                 );
             }
 
@@ -175,9 +175,9 @@ class AudioHandler {
             // Set up fade out if specified
             if (options.fadeOut) {
                 const fadeOutTime = (audioBuffer.duration * 1000) - options.fadeOut;
-                logger.debug(`[Audio] Setting up fade out for track ${trackId} over ${options.fadeOut}s at ${fadeOutTime}ms`);
+                logger.debug(`[Audio] Setting up fade out for track ${trackId} over ${options.fadeOut}ms at ${fadeOutTime}ms`);
                 setTimeout(() => {
-                    this.fadeOutTrack(trackId, options.fadeOut * 1000);
+                    this.fadeOutTrack(trackId, options.fadeOut);
                 }, fadeOutTime);
             }
 
@@ -236,45 +236,30 @@ class AudioHandler {
         }
     }
 
-    async fadeOutTrack(trackId, duration = 2000) {
-        try {
-            const track = this.tracks.get(trackId);
-            if (!track) {
-                logger.warn(`[Audio] Track ${trackId} not found for fade out`);
-                return;
-            }
-
-            logger.info(`[Audio] Fading out track ${trackId} over ${duration}ms`);
-            
-            // Get the current gain value
-            const currentGain = track.gainNode.gain.value;
-            
-            // Create a new gain node for the fade
-            const fadeGain = this.audioContext.createGain();
-            fadeGain.gain.setValueAtTime(currentGain, this.audioContext.currentTime);
-            
-            // Disconnect the old gain node
-            track.source.disconnect(track.gainNode);
-            
-            // Connect through the new gain node
-            track.source.connect(fadeGain);
-            fadeGain.connect(this.audioContext.destination);
-            
-            // Start the fade
-            fadeGain.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + (duration / 1000));
-            
-            // Update the track's gain node reference
-            track.gainNode = fadeGain;
-            
-            // Wait for the fade to complete
-            await new Promise(resolve => setTimeout(resolve, duration));
-            
-            // Stop the track after fade
-            this.stopTrack(trackId);
-            
-        } catch (error) {
-            logger.error(`[Audio] Error fading out track ${trackId}:`, error);
+    async fadeOutTrack(trackId, duration = 1000) {
+        const track = this.tracks.get(trackId);
+        if (!track) {
+            logger.warn(`[Audio] Cannot fade out track ${trackId}: track not found`);
+            return;
         }
+
+        logger.debug(`[Audio] Fading out track ${trackId} over ${duration}ms`);
+        const { gainNode } = track;
+        
+        // Set up fade out
+        gainNode.gain.linearRampToValueAtTime(
+            gainNode.gain.value,
+            this.audioContext.currentTime
+        );
+        gainNode.gain.linearRampToValueAtTime(
+            0,
+            this.audioContext.currentTime + (duration / 1000)
+        );
+
+        // Stop the track after fade out completes
+        setTimeout(() => {
+            this.stopTrack(trackId);
+        }, duration);
     }
 
     fadeInTrack(trackId, duration_ms, targetVolume = 1) {
@@ -424,20 +409,28 @@ class AudioHandler {
 
         try {
             logger.info(`[Audio] Handling audio config:`, audioConfig);
-            const { url, trackId, volume, loop, fadeIn, fadeOut } = audioConfig;
+            const { trackId, volume, loop, fadeIn, fadeOut } = audioConfig;
 
-            if (!url) {
-                logger.warn("[Audio] No URL provided in audio config");
+            // If it's just a fade out, handle it directly
+            if (trackId && fadeOut) {
+                await this.fadeOutTrack(trackId, fadeOut);
                 return;
             }
 
+            // Look up URL from audio library
+            if (!trackId || !window.audioLibrary || !window.audioLibrary[trackId]) {
+                logger.warn(`[Audio] No audio track found for trackId: ${trackId}`);
+                return;
+            }
+
+            const url = window.audioLibrary[trackId].url;
             const audioBuffer = await this.loadAudio(url);
             if (!audioBuffer) {
                 logger.error("[Audio] Failed to load audio buffer");
                 return;
             }
 
-            await this.playTrack(trackId || url, audioBuffer, {
+            await this.playTrack(trackId, audioBuffer, {
                 volume,
                 loop,
                 fadeIn,

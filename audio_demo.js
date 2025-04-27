@@ -7,12 +7,10 @@ const scenes = [
         text: "The Forest at Night",
         arrive: {
             transition: "type", 
-            //ms_per_char: 50,
             audio: {
-                trackId: "ambient",
-                url: window.audioLibrary.trees.url,
+                trackId: "trees",
                 volume: 0.1,
-                fadeIn: 1,
+                fadeIn: 1000,
                 loop: true
             }
         },
@@ -31,9 +29,8 @@ const scenes = [
             ms_per_char: 50,
             audio: {
                 trackId: "crickets",
-                url: window.audioLibrary.crickets.url,
                 volume: 0.2,
-                fadeIn: 2,
+                fadeIn: 2000,
                 loop: true
             }
         },
@@ -52,15 +49,37 @@ const scenes = [
             ms_per_char: 50,
             audio: {
                 trackId: "owl",
-                url: window.audioLibrary.owl.url,
                 volume: 0.4,
-                fadeIn: 1
+                fadeIn: 1000
             }
         },
         dwell: 3000,
         depart: {
             transition: "fade",
             duration: 2000
+        }
+    },
+
+    // Scene 3.5: Creepy siren with fade in/out
+    {
+        text: "A mysterious sound grows louder...",
+        arrive: {
+            transition: "type",
+            ms_per_char: 50,
+            audio: {
+                trackId: "creepy_siren",
+                volume: 0.3,
+                fadeIn: 2000
+            }
+        },
+        dwell: 4000,
+        depart: {
+            transition: "fade",
+            duration: 2000,
+            audio: {
+                trackId: "creepy_siren",
+                fadeOut: 2000
+            }
         }
     },
 
@@ -71,10 +90,9 @@ const scenes = [
             transition: "type",
             ms_per_char: 50,
             audio: {
-                trackId: "music",
-                url: window.audioLibrary.music.url,
+                trackId: "rustling",
                 volume: 0.3,
-                fadeIn: 3,
+                fadeIn: 3000,
                 loop: true
             }
         },
@@ -93,9 +111,8 @@ const scenes = [
             ms_per_char: 50,
             audio: {
                 trackId: "footsteps",
-                url: window.audioLibrary.footsteps.url,
                 volume: 0.5,
-                fadeIn: 0,
+                fadeIn: 500,
                 loop: false
             }
         },
@@ -124,7 +141,7 @@ const scenes = [
         depart: {
             transition: "fade",
             duration: 1000,
-            wait: true  // Explicitly ensure we wait for fade out
+            wait: true
         }
     },
 
@@ -136,9 +153,8 @@ const scenes = [
             ms_per_char: 50,
             audio: {
                 trackId: "wolf",
-                url: window.audioLibrary.wolf.url,
                 volume: 0.5,
-                fadeIn: 1
+                fadeIn: 1000
             }
         },
         dwell: 3000,
@@ -163,11 +179,10 @@ const scenes = [
         }
     },
 
-    // Scene 10: Fade out all remaining sounds (duration in milliseconds)
+    // Scene 10: Fade out all remaining sounds
     {
         directive: "fade_all_audio",
-        duration: 5000,  
-        //wait_for_fade: true  // Wait for the full fade duration
+        duration: 5000
     },
 
     // Scene 11: Goodbye message
@@ -177,10 +192,9 @@ const scenes = [
             transition: "fade",
             duration: 500,
             audio: {
-                trackId: "goodbye",
-                url: window.audioLibrary.owl.url,
+                trackId: "owl",
                 volume: 0.3,
-                fadeIn: 0.5
+                fadeIn: 500
             }
         },
         dwell: 2000,
@@ -193,7 +207,7 @@ const scenes = [
     // Scene 12: Clear everything
     {
         directive: "clear",
-        dwell: 2000  // Short dwell since the fade is already complete
+        dwell: 2000
     }
 ]; 
 

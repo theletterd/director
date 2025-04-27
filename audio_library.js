@@ -25,6 +25,10 @@ const audioLibrary = {
     wolf: {
         url: "./sound_effects/wolf.wav",
         description: "Wolf howl - dramatic sound effect for the climax"
+    },
+    creepy_siren: {
+        url: "./sound_effects/creepy_siren.mp3",
+        description: "Eerie, mysterious sound - perfect for building suspense and tension"
     }
 };
 
