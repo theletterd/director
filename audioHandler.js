@@ -136,6 +136,7 @@ class AudioHandler {
             logger.info(`[Audio] Creating audio nodes for track ${trackId}`);
             const source = this.audioContext.createBufferSource();
             const gainNode = this.audioContext.createGain();
+            const pannerNode = this.audioContext.createStereoPanner();
             
             source.buffer = audioBuffer;
             source.loop = options.loop || false;
@@ -143,12 +144,20 @@ class AudioHandler {
             // Connect nodes
             logger.debug(`[Audio] Connecting audio nodes for track ${trackId}`);
             source.connect(gainNode);
-            gainNode.connect(this.gainNode);
+            gainNode.connect(pannerNode);
+            pannerNode.connect(this.gainNode);
 
             // Set initial volume
             const volume = options.volume !== undefined ? options.volume : 1;
             logger.debug(`[Audio] Setting initial volume for track ${trackId} to ${volume}`);
             gainNode.gain.value = volume;
+
+            // Set pan if specified (-1 = full left, 0 = center, 1 = full right)
+            if (options.pan !== undefined) {
+                const pan = Math.max(-1, Math.min(1, options.pan)); // Clamp between -1 and 1
+                logger.debug(`[Audio] Setting pan for track ${trackId} to ${pan}`);
+                pannerNode.pan.value = pan;
+            }
 
             // Handle fade in
             if (options.fadeIn) {
@@ -160,14 +169,16 @@ class AudioHandler {
                 );
             }
 
-            // Start playback
-            logger.info(`[Audio] Starting playback of track ${trackId}`);
-            source.start(0);
+            // Start playback from offset if specified
+            const offset = options.offset || 0; // offset in seconds
+            logger.debug(`[Audio] Starting playback of track ${trackId} from offset ${offset}s`);
+            source.start(0, offset);
             
             // Store track info
             this.tracks.set(trackId, {
                 source,
                 gainNode,
+                pannerNode,
                 buffer: audioBuffer,
                 options
             });
@@ -185,7 +196,7 @@ class AudioHandler {
             return new Promise((resolve, reject) => {
                 try {
                     // Calculate expected duration
-                    const expectedDuration = options.loop ? Infinity : audioBuffer.duration * 1000;
+                    const expectedDuration = options.loop ? Infinity : (audioBuffer.duration - offset) * 1000;
                     const timeoutDuration = options.loop ? 60000 : expectedDuration + 1000; // 1 minute for loops, duration + 1s for one-shots
 
                     // Set up timeout
@@ -243,7 +254,7 @@ class AudioHandler {
             return;
         }
 
-        logger.debug(`[Audio] Fading out track ${trackId} over ${duration}ms`);
+        logger.info(`[Audio] Starting fade out for track ${trackId} over ${duration}ms`);
         const { gainNode } = track;
         
         // Set up fade out
@@ -256,10 +267,18 @@ class AudioHandler {
             this.audioContext.currentTime + (duration / 1000)
         );
 
-        // Stop the track after fade out completes
-        setTimeout(() => {
-            this.stopTrack(trackId);
-        }, duration);
+        // Return a promise that resolves when the fade out completes
+        return new Promise(resolve => {
+            logger.info(`[Audio] Waiting for fade out to complete for track ${trackId}`);
+            
+            // Add a small buffer to ensure the fade is complete
+            const buffer = 50; // 50ms buffer
+            setTimeout(() => {
+                logger.info(`[Audio] Fade out complete for track ${trackId}, stopping track`);
+                this.stopTrack(trackId);
+                resolve();
+            }, duration + buffer);
+        });
     }
 
     fadeInTrack(trackId, duration_ms, targetVolume = 1) {
@@ -413,7 +432,9 @@ class AudioHandler {
 
             // If it's just a fade out, handle it directly
             if (trackId && fadeOut) {
+                logger.info(`[Audio] Handling fade out for track ${trackId} over ${fadeOut}ms`);
                 await this.fadeOutTrack(trackId, fadeOut);
+                logger.info(`[Audio] Fade out handled for track ${trackId}`);
                 return;
             }
 
@@ -424,22 +445,38 @@ class AudioHandler {
             }
 
             const url = window.audioLibrary[trackId].url;
+            logger.info(`[Audio] Loading audio from ${url}`);
             const audioBuffer = await this.loadAudio(url);
             if (!audioBuffer) {
                 logger.error("[Audio] Failed to load audio buffer");
                 return;
             }
 
+            logger.info(`[Audio] Playing track ${trackId} with options:`, { volume, loop, fadeIn, fadeOut });
             await this.playTrack(trackId, audioBuffer, {
                 volume,
                 loop,
                 fadeIn,
                 fadeOut
             });
+            logger.info(`[Audio] Track ${trackId} playback started`);
         } catch (error) {
             logger.error("[Audio] Error handling audio:", error);
             throw error;
         }
+    }
+
+    // Add method to change pan during playback
+    setTrackPan(trackId, pan) {
+        const track = this.tracks.get(trackId);
+        if (!track) {
+            logger.warn(`[Audio] Cannot set pan for track ${trackId}: track not found`);
+            return;
+        }
+
+        const clampedPan = Math.max(-1, Math.min(1, pan)); // Clamp between -1 and 1
+        logger.debug(`[Audio] Setting pan for track ${trackId} to ${clampedPan}`);
+        track.pannerNode.pan.value = clampedPan;
     }
 }
 

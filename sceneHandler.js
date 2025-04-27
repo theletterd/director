@@ -7,9 +7,10 @@ class SceneHandler {
         this.scenes = null;
         this.isPlaying = false;
         this.shouldLoop = true;
-        this.sceneCompleteCallbacks = new Map();
+        this.onSceneCompleteCallbacks = new Map();
         this.isPaused = false;
         this.performanceMode = false;
+        this.isRestarting = false;
 
         // Set up logging
         this.logger = typeof logger !== 'undefined' ? logger : console;
@@ -42,7 +43,7 @@ class SceneHandler {
     }
 
     onSceneComplete(sceneIndex, callback) {
-        this.sceneCompleteCallbacks.set(sceneIndex, callback);
+        this.onSceneCompleteCallbacks.set(sceneIndex, callback);
     }
 
     async processScene(scene) {
@@ -107,10 +108,10 @@ class SceneHandler {
             logger.info(`[Scene ${this.currentSceneIndex}] Total scene duration: ${totalDuration.toFixed(2)}ms`);
 
             // Notify that this scene is complete
-            const callback = this.sceneCompleteCallbacks.get(this.currentSceneIndex);
+            const callback = this.onSceneCompleteCallbacks.get(this.currentSceneIndex);
             if (callback) {
                 callback();
-                this.sceneCompleteCallbacks.delete(this.currentSceneIndex);
+                this.onSceneCompleteCallbacks.delete(this.currentSceneIndex);
             }
 
             return totalDuration;
@@ -222,11 +223,11 @@ class SceneHandler {
         });
 
         // Notify that this scene is complete
-        const callback = this.sceneCompleteCallbacks.get(this.currentSceneIndex);
+        const callback = this.onSceneCompleteCallbacks.get(this.currentSceneIndex);
         if (callback) {
             directiveComplete.then(() => {
                 callback();
-                this.sceneCompleteCallbacks.delete(this.currentSceneIndex);
+                this.onSceneCompleteCallbacks.delete(this.currentSceneIndex);
             });
         }
 
@@ -300,10 +301,16 @@ class SceneHandler {
 
         while (attempts <= maxRetries) {
             try {
-                // Start audio but don't wait for it to complete
-                this.audioHandler.handleAudio(audio).catch(error => {
-                    this.logger.error(`[Audio] Error in background audio: ${error.message}`);
-                });
+                // Wait for audio to complete if it's a departure phase
+                if (phase === "departure") {
+                    logger.info(`[Audio] Waiting for audio to complete in departure phase`);
+                    await this.audioHandler.handleAudio(audio);
+                } else {
+                    // For other phases, start audio but don't wait
+                    this.audioHandler.handleAudio(audio).catch(error => {
+                        this.logger.error(`[Audio] Error in background audio: ${error.message}`);
+                    });
+                }
                 return;
             } catch (error) {
                 attempts++;
@@ -413,38 +420,45 @@ class SceneHandler {
     async handleDeparture(sceneElement, departure) {
         if (!departure) return;
 
+        logger.info(`[Depart] Starting departure with wait_for_audio=${departure.wait_for_audio}`);
+
         // Create a promise that resolves when all departure actions are complete
         const departureComplete = new Promise(async (resolve) => {
-            // Handle audio first if specified
-            if (departure.audio) {
-                // For looping audio, we don't wait for it to complete
-                if (departure.audio.loop) {
-                    this.handleAudio(departure.audio, "departure").catch(error => {
-                        this.logger.error("[Depart] Error handling looping audio:", error);
-                    });
-                } else {
-                    await this.handleAudio(departure.audio, "departure");
-                }
-            }
+            // Start both audio and visual transitions simultaneously
+            const audioPromise = departure.audio ? 
+                this.handleAudio(departure.audio, "departure") : 
+                Promise.resolve();
 
-            // Handle visual transition
-            if (departure.transition) {
-                await this.handleTransition(sceneElement, {
+            const visualPromise = departure.transition ? 
+                this.handleTransition(sceneElement, {
                     ...departure,
                     type: "out"
-                });
+                }) : 
+                Promise.resolve();
+
+            // If wait_for_audio is true, wait for both to complete
+            if (departure.wait_for_audio === true) {
+                logger.info(`[Depart] Waiting for both audio and visual transitions to complete`);
+                await Promise.all([audioPromise, visualPromise]);
+            } else {
+                // Otherwise, just wait for visual transition
+                logger.info(`[Depart] Only waiting for visual transition to complete`);
+                await visualPromise;
             }
 
             // Only wait if explicitly set to true (default is false now)
             if (departure.wait === true) {
+                logger.info(`[Depart] Waiting for additional duration: ${departure.duration || 1000}ms`);
                 await this.sleep(departure.duration || 1000);
             }
 
+            logger.info(`[Depart] All departure actions complete`);
             resolve();
         });
 
         // Wait for departure to complete
         await departureComplete;
+        logger.info(`[Depart] Departure complete`);
     }
 
     async handleRemoval(sceneElement, departure) {
@@ -581,8 +595,8 @@ class SceneHandler {
     }
 
     async playScenes(scenes, startIndex = 0) {
-        if (!scenes || !Array.isArray(scenes)) {
-            logger.error("[Scene] playScenes called with invalid scenes:", scenes);
+        if (!scenes || scenes.length === 0) {
+            logger.warn("[Scene] No scenes to play");
             return;
         }
 
@@ -590,13 +604,22 @@ class SceneHandler {
         this.currentSceneIndex = startIndex;
         this.isPlaying = true;
 
-        while (this.isPlaying && this.currentSceneIndex < scenes.length) {
-            logger.info(`[Scene] Processing scene ${this.currentSceneIndex} of ${scenes.length}`);
+        while (this.isPlaying) {
+            // If we've reached the end of the scenes
+            if (this.currentSceneIndex >= scenes.length) {
+                if (this.shouldLoop && !this.isRestarting) {
+                    logger.info("[Scene] Reached end of scenes, restarting");
+                    this.currentSceneIndex = 0; // Reset to start
+                    continue; // Continue the loop with the first scene
+                } else {
+                    logger.info("[Scene] Finished playing all scenes");
+                    break; // Exit the loop if we shouldn't loop
+                }
+            }
+
             const scene = scenes[this.currentSceneIndex];
-            
-            // Create a promise that resolves when this scene is complete
             const sceneComplete = new Promise(resolve => {
-                this.onSceneComplete(this.currentSceneIndex, resolve);
+                this.onSceneCompleteCallbacks.set(this.currentSceneIndex, resolve);
             });
 
             try {
@@ -609,40 +632,44 @@ class SceneHandler {
                 // Add a small delay between scenes
                 await this.sleep(50);
                 
-                // Only after the scene is complete and delay is done, move to the next one
+                // Move to the next scene
                 this.currentSceneIndex++;
             } catch (error) {
                 logger.error(`[Scene] Error processing scene ${this.currentSceneIndex}:`, error);
                 this.currentSceneIndex++;
             }
         }
-
-        // If we've reached the end and should loop
-        if (this.isPlaying && this.shouldLoop) {
-            logger.info("[Scene] Reached end of scenes, restarting");
-            this.restartScenes();
-        } else {
-            logger.info("[Scene] Finished playing all scenes");
-        }
     }
 
     restartScenes() {
-        logger.info("[Scene] Restarting scenes");
-        const currentIndex = this.currentSceneIndex; // Store current index
-        this.stop(); // Stop current playback and clear audio
-        this.screen.empty(); // Clear the screen
-        if (this.scenes) {
-            // If audio is allowed, play scenes from current index
-            if (this.audioHandler.isAudioAllowed) {
-                this.playScenes(this.scenes, currentIndex);
-            } else {
-                // If audio is not allowed, queue the first scene's audio
-                const firstScene = this.scenes[0];
-                if (firstScene && firstScene.arrive && firstScene.arrive.audio) {
-                    this.audioHandler.handleAudio(firstScene.arrive.audio);
+        if (this.isRestarting) {
+            logger.warn("[Scene] Already restarting scenes, ignoring duplicate restart");
+            return;
+        }
+
+        try {
+            this.isRestarting = true;
+            logger.info("[Scene] Restarting scenes");
+            const currentIndex = this.currentSceneIndex; // Store current index
+            this.stop(); // Stop current playback and clear audio
+            this.screen.empty(); // Clear the screen
+            if (this.scenes) {
+                // If audio is allowed, play scenes from current index
+                if (this.audioHandler.isAudioAllowed) {
+                    // Clear any pending audio operations
+                    this.audioHandler.stopAllTracks();
+                    this.playScenes(this.scenes, currentIndex);
+                } else {
+                    // If audio is not allowed, queue the first scene's audio
+                    const firstScene = this.scenes[0];
+                    if (firstScene && firstScene.arrive && firstScene.arrive.audio) {
+                        this.audioHandler.handleAudio(firstScene.arrive.audio);
+                    }
+                    this.playScenes(this.scenes, currentIndex);
                 }
-                this.playScenes(this.scenes, currentIndex);
             }
+        } finally {
+            this.isRestarting = false;
         }
     }
 

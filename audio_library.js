@@ -14,7 +14,7 @@ const audioLibrary = {
         url: "./sound_effects/owl.mp3",
         description: "Owl hooting sound - adds mystery to the night scene"
     },
-    music: {
+    rustling: {
         url: "./sound_effects/rustling.mp3",
         description: "Mysterious music with rustling leaves - builds tension"
     },

@@ -9,7 +9,7 @@ const scenes = [
             transition: "type", 
             audio: {
                 trackId: "trees",
-                volume: 0.1,
+                volume: 0.05,
                 fadeIn: 1000,
                 loop: true
             }
@@ -50,7 +50,8 @@ const scenes = [
             audio: {
                 trackId: "owl",
                 volume: 0.4,
-                fadeIn: 1000
+                fadeIn: 1000,
+                pan: -0.9
             }
         },
         dwell: 3000,
@@ -68,18 +69,19 @@ const scenes = [
             ms_per_char: 50,
             audio: {
                 trackId: "creepy_siren",
-                volume: 0.3,
-                fadeIn: 2000
+                volume: 0.5,
+                fadeIn: 500
             }
         },
-        dwell: 4000,
+        dwell: 2000,
         depart: {
             transition: "fade",
-            duration: 2000,
+            duration: 1000,
             audio: {
                 trackId: "creepy_siren",
-                fadeOut: 2000
-            }
+                fadeOut: 7000
+            },
+            wait_for_audio: false
         }
     },
 
@@ -91,15 +93,21 @@ const scenes = [
             ms_per_char: 50,
             audio: {
                 trackId: "rustling",
-                volume: 0.3,
-                fadeIn: 3000,
-                loop: true
+                volume: 1.5,
+                offset: 3000,
+                fadeIn: 500,
+                pan: 1.0 // happening on the right
             }
         },
         dwell: 4000,
         depart: {
             transition: "fade",
-            duration: 2000
+            duration: 500,
+            audio: {
+                trackId: "rustling",
+                fadeOut: 10000
+            },
+            wait_for_audio: true
         }
     },
 
@@ -113,6 +121,7 @@ const scenes = [
                 trackId: "footsteps",
                 volume: 0.5,
                 fadeIn: 500,
+                pan: -0.4,
                 loop: false
             }
         },
