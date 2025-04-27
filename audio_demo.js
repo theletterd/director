@@ -10,7 +10,7 @@ const scenes = [
             //ms_per_char: 50,
             audio: {
                 trackId: "ambient",
-                url: "./sound_effects/trees.wav", // Forest ambient sound
+                url: window.audioLibrary.trees.url,
                 volume: 0.1,
                 fadeIn: 1,
                 loop: true
@@ -31,7 +31,7 @@ const scenes = [
             ms_per_char: 50,
             audio: {
                 trackId: "crickets",
-                url: "./sound_effects/crickets.wav", // Crickets sound
+                url: window.audioLibrary.crickets.url,
                 volume: 0.2,
                 fadeIn: 2,
                 loop: true
@@ -52,7 +52,7 @@ const scenes = [
             ms_per_char: 50,
             audio: {
                 trackId: "owl",
-                url: "./sound_effects/owl.mp3", // Owl sound
+                url: window.audioLibrary.owl.url,
                 volume: 0.4,
                 fadeIn: 1
             }
@@ -72,7 +72,7 @@ const scenes = [
             ms_per_char: 50,
             audio: {
                 trackId: "music",
-                url: "./sound_effects/rustling.mp3", // Mysterious music
+                url: window.audioLibrary.music.url,
                 volume: 0.3,
                 fadeIn: 3,
                 loop: true
@@ -93,7 +93,7 @@ const scenes = [
             ms_per_char: 50,
             audio: {
                 trackId: "footsteps",
-                url: "./sound_effects/forest-footsteps.mp3",
+                url: window.audioLibrary.footsteps.url,
                 volume: 0.5,
                 fadeIn: 0,
                 loop: false
@@ -136,7 +136,7 @@ const scenes = [
             ms_per_char: 50,
             audio: {
                 trackId: "wolf",
-                url: "./sound_effects/wolf.wav", // Wolf howl
+                url: window.audioLibrary.wolf.url,
                 volume: 0.5,
                 fadeIn: 1
             }
@@ -178,7 +178,7 @@ const scenes = [
             duration: 500,
             audio: {
                 trackId: "goodbye",
-                url: "./sound_effects/owl.mp3", // Reuse owl sound for goodbye
+                url: window.audioLibrary.owl.url,
                 volume: 0.3,
                 fadeIn: 0.5
             }
@@ -196,3 +196,6 @@ const scenes = [
         dwell: 2000  // Short dwell since the fade is already complete
     }
 ]; 
+
+// Expose scenes to window object
+window.scenes = scenes; 
