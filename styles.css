@@ -7,15 +7,37 @@ div {
 	line-height: 20px;
 	display: block;
 	white-space: pre;
-
 }
 
 #screen * {
-	font-size: 18px;
+	font-size: 24px;
 	font-family: monospace;
+	line-height: 1.5;
 }
 
 #screen {
-	width:80%;
+	width: 80%;
 	margin: 100px auto;
+	padding: 20px;
+	color: #000;
+	background-color: #f5f5dc;
+	min-height: 100vh;
+}
+
+.scene {
+	display: block !important;
+	visibility: visible !important;
+	opacity: 1;
+	transition: opacity 2s ease-in-out;
+}
+
+/* Ensure the screen maintains proper spacing */
+#screen {
+	min-height: 100vh;
+	padding: 20px;
+	font-family: monospace;
+	font-size: 24px;
+	line-height: 1.5;
+	background-color: #f5f5dc;
+	color: #000;
 }
