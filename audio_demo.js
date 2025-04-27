@@ -105,9 +105,9 @@ const scenes = [
             duration: 500,
             audio: {
                 trackId: "rustling",
-                fadeOut: 10000
+                fadeOut: 5000
             },
-            wait_for_audio: true
+            wait_for_audio: false
         }
     },
 

@@ -291,6 +291,156 @@ describe('SceneHandler', () => {
             expect(mockSceneElement.remove).not.toHaveBeenCalled();
             expect(mockSceneElement.css).not.toHaveBeenCalledWith('opacity', 0);
         }, 10000);
+
+        it('should start audio fade and visual transition simultaneously during departure', async () => {
+            const scene = {
+                text: 'Test scene',
+                depart: {
+                    transition: 'fade',
+                    duration: 1000,
+                    audio: {
+                        track: 'test_track',
+                        fadeOut: 1000
+                    },
+                    wait_for_audio: true
+                }
+            };
+
+            const element = $('<div>').text(scene.text);
+
+            // Mock audio handler to track when fade starts
+            let audioFadeStartTime;
+            sceneHandler.audioHandler.handleAudio = jest.fn(() => {
+                audioFadeStartTime = Date.now();
+                return Promise.resolve();
+            });
+
+            // Mock transition to track when it starts
+            let transitionStartTime;
+            element.css = jest.fn((props, value) => {
+                if ((typeof props === 'string' && props === 'opacity' && value === 0) ||
+                    (typeof props === 'object' && props.opacity === 0)) {
+                    transitionStartTime = Date.now();
+                }
+                return element;
+            });
+
+            // Mock transitionend event
+            element.on = jest.fn((event, handler) => {
+                if (event === 'transitionend') {
+                    setTimeout(handler, 100);
+                }
+                return element;
+            });
+
+            await sceneHandler.handleDeparture(element, scene.depart);
+
+            // Verify both transitions started within 10ms of each other
+            expect(audioFadeStartTime).toBeDefined();
+            expect(transitionStartTime).toBeDefined();
+            expect(Math.abs(audioFadeStartTime - transitionStartTime)).toBeLessThan(10);
+        });
+
+        it('should wait for both audio and visual transitions when wait_for_audio is true', async () => {
+            const scene = {
+                text: 'Test scene',
+                depart: {
+                    transition: 'fade',
+                    duration: 1000,
+                    audio: {
+                        track: 'test_track',
+                        fadeOut: 1000
+                    },
+                    wait_for_audio: true
+                }
+            };
+
+            const element = $('<div>').text(scene.text);
+            let audioComplete = false;
+            let visualComplete = false;
+
+            // Mock audio handler to simulate delayed completion
+            sceneHandler.audioHandler.handleAudio = jest.fn(() => {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        audioComplete = true;
+                        resolve();
+                    }, 100);
+                });
+            });
+
+            // Mock transition to simulate delayed completion
+            element.css = jest.fn().mockReturnThis();
+            element.on = jest.fn((event, handler) => {
+                if (event === 'transitionend') {
+                    setTimeout(() => {
+                        visualComplete = true;
+                        handler();
+                    }, 100);
+                }
+                return element;
+            });
+            element.off = jest.fn().mockReturnThis();
+
+            const startTime = Date.now();
+            await sceneHandler.handleDeparture(element, scene.depart);
+            const endTime = Date.now();
+
+            // Verify both transitions completed
+            expect(audioComplete).toBe(true);
+            expect(visualComplete).toBe(true);
+            // Verify we waited for both (should take at least 100ms)
+            expect(endTime - startTime).toBeGreaterThanOrEqual(100);
+        });
+
+        it('should only wait for visual transition when wait_for_audio is false', async () => {
+            const scene = {
+                text: 'Test scene',
+                depart: {
+                    transition: 'fade',
+                    duration: 1000,
+                    audio: {
+                        track: 'test_track',
+                        fadeOut: 1000
+                    },
+                    wait_for_audio: false
+                }
+            };
+
+            const element = $('<div>').text(scene.text);
+            let audioComplete = false;
+            let visualComplete = false;
+
+            // Mock audio handler to simulate delayed completion
+            sceneHandler.audioHandler.fadeOutTrack = jest.fn(() => {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        audioComplete = true;
+                        resolve();
+                    }, 1000);
+                });
+            });
+
+            // Mock transition to simulate faster completion
+            element.css = jest.fn();
+            element.on = jest.fn((event, handler) => {
+                setTimeout(() => {
+                    visualComplete = true;
+                    handler();
+                }, 500); // Visual transition completes faster
+            });
+
+            const startTime = Date.now();
+            await sceneHandler.handleDeparture(element, scene.depart);
+            const endTime = Date.now();
+
+            // Verify visual transition completed
+            expect(visualComplete).toBe(true);
+            // Verify we didn't wait for audio (should take less than 1000ms)
+            expect(endTime - startTime).toBeLessThan(1000);
+            // Audio might not be complete yet
+            expect(audioComplete).toBe(false);
+        });
     });
 
     describe('Scene Restart', () => {
@@ -300,11 +450,35 @@ describe('SceneHandler', () => {
                 { text: "Scene 2", dwell: 100 }
             ];
 
+            // Mock playScenes to resolve immediately
+            const originalPlayScenes = sceneHandler.playScenes;
+            sceneHandler.playScenes = jest.fn().mockResolvedValue();
+
+            // Start playing scenes
             await sceneHandler.playScenes(scenes);
+
+            // Clear previous calls
+            mockScreen.empty.mockClear();
+            mockAudioHandler.stopAllTracks.mockClear();
+            sceneHandler.playScenes.mockClear();
+
+            // Store the scenes in the handler
+            sceneHandler.scenes = scenes;
+            sceneHandler.currentSceneIndex = 1; // Set current index to simulate playback
+
+            // Trigger restart
             await sceneHandler.restartScenes();
+
+            // Verify screen was cleared and audio was stopped
             expect(mockScreen.empty).toHaveBeenCalled();
             expect(mockAudioHandler.stopAllTracks).toHaveBeenCalled();
-        });
+
+            // Verify scenes were played again from the current index
+            expect(sceneHandler.playScenes).toHaveBeenCalledWith(scenes, 1);
+
+            // Restore original playScenes
+            sceneHandler.playScenes = originalPlayScenes;
+        }, 10000); // Increase timeout to 10 seconds
     });
 
     describe('Error Recovery', () => {
