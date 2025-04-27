@@ -235,10 +235,31 @@ class SceneHandler {
 
     async fadeAllElements() {
         logger.debug("Fading all elements");
-        this.screen.find('div').fadeOut(2000, () => {
-            this.screen.find('div:hidden').remove();
+        const elements = this.screen.find('div');
+        const duration = 2000;
+
+        return new Promise(resolve => {
+            // Set up transitions for all elements
+            elements.css({
+                'transition': `opacity ${duration}ms linear`,
+                'opacity': 1
+            });
+
+            // Force a reflow
+            elements[0].offsetHeight;
+
+            // Start the fade
+            elements.css('opacity', 0);
+
+            // Set up transitionend listener
+            const onTransitionEnd = () => {
+                elements.off('transitionend', onTransitionEnd);
+                elements.remove();
+                resolve();
+            };
+
+            elements.on('transitionend', onTransitionEnd);
         });
-        await this.sleep(2000);
     }
 
     createSceneElement(scene) {
@@ -497,7 +518,11 @@ class SceneHandler {
                 if (!this.performanceMode) {
                     logger.debug("[Transition] Hiding immediately");
                 }
-                sceneElement.css('opacity', 0);
+                if (config.type === "out" && config.remove === true) {
+                    sceneElement.remove();
+                } else {
+                    sceneElement.hide();
+                }
                 return Promise.resolve();
             case "type":
                 if (config.type !== "out") {
@@ -511,6 +536,11 @@ class SceneHandler {
                     sceneElement.css('opacity', 0);
                     return Promise.resolve();
                 }
+            case "keep":
+                if (!this.performanceMode) {
+                    logger.debug("[Transition] Keeping element as is");
+                }
+                return Promise.resolve();
             default:
                 logger.warn(`[Transition] Unknown transition: ${config.transition}`);
                 if (config.type === "in") {
@@ -550,13 +580,14 @@ class SceneHandler {
         });
     }
 
-    async playScenes(scenes) {
+    async playScenes(scenes, startIndex = 0) {
         if (!scenes || !Array.isArray(scenes)) {
             logger.error("[Scene] playScenes called with invalid scenes:", scenes);
             return;
         }
 
         this.scenes = scenes;
+        this.currentSceneIndex = startIndex;
         this.isPlaying = true;
 
         while (this.isPlaying && this.currentSceneIndex < scenes.length) {

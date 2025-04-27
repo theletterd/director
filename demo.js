@@ -7,8 +7,7 @@ var scenes = [
 		},
 		dwell: 3000,
 		depart: {
-			transition: "keep",
-			remove: false,
+			transition: "keep"
 		}
 	},
 	{directive: "blankline"},

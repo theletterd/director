@@ -160,6 +160,30 @@ describe('SceneHandler', () => {
             expect(mockAudioHandler.handleAudio).toHaveBeenCalledTimes(2);
         }, 10000); // Increase timeout to 10s
 
+        test('should keep element visible with keep transition', async () => {
+            const scene = {
+                text: "Test Scene",
+                arrive: {
+                    transition: "fade",
+                    duration: 100
+                },
+                dwell: 100,
+                depart: {
+                    transition: "keep"
+                }
+            };
+
+            await sceneHandler.processScene(scene);
+            
+            // Element should be shown and at full opacity
+            expect(mockSceneElement.show).toHaveBeenCalled();
+            expect(mockSceneElement.css).toHaveBeenCalledWith('opacity', 1);
+            
+            // Element should not be hidden or removed
+            expect(mockSceneElement.hide).not.toHaveBeenCalled();
+            expect(mockSceneElement.remove).not.toHaveBeenCalled();
+        }, 10000);
+
         test('should remove elements when explicitly requested', async () => {
             const scene = {
                 text: "Test Scene",
@@ -187,6 +211,86 @@ describe('SceneHandler', () => {
             const minExpectedTime = scene.arrive.duration + scene.dwell + scene.depart.duration;
             expect(endTime - startTime).toBeGreaterThanOrEqual(minExpectedTime);
         }, 10000); // Increase timeout to 10s
+
+        test('should fade out all elements with fade_all directive', async () => {
+            const scene = {
+                directive: "fade_all"
+            };
+
+            // Create some test elements
+            const element1 = $('<div>').text('Test 1');
+            const element2 = $('<div>').text('Test 2');
+            element1.remove = jest.fn();
+            element2.remove = jest.fn();
+            element1.on = jest.fn((event, handler) => {
+                element1.transitionHandler = handler;
+            });
+            element2.on = jest.fn((event, handler) => {
+                element2.transitionHandler = handler;
+            });
+            element1.off = jest.fn();
+            element2.off = jest.fn();
+            mockScreen.find.mockReturnValue($([element1[0], element2[0]]));
+
+            // Process the scene
+            const processPromise = sceneHandler.processScene(scene);
+
+            // Verify CSS transitions were set up
+            expect(element1.css).toHaveBeenCalledWith({
+                'transition': 'opacity 2000ms linear',
+                'opacity': 1
+            });
+            expect(element2.css).toHaveBeenCalledWith({
+                'transition': 'opacity 2000ms linear',
+                'opacity': 1
+            });
+
+            // Verify opacity was set to 0 to start the fade
+            expect(element1.css).toHaveBeenCalledWith('opacity', 0);
+            expect(element2.css).toHaveBeenCalledWith('opacity', 0);
+
+            // Trigger the transition end handlers
+            element1.transitionHandler();
+
+            // Wait for the scene to complete
+            await processPromise;
+
+            // Verify elements were removed
+            expect(element1.remove).toHaveBeenCalled();
+            expect(element2.remove).toHaveBeenCalled();
+        }, 10000);
+
+        test('should properly handle hide transition with remove option', async () => {
+            const scene = {
+                text: "Test Scene",
+                arrive: { transition: "show" },
+                dwell: 100,
+                depart: { transition: "hide", remove: true }
+            };
+
+            await sceneHandler.processScene(scene);
+            
+            // Verify element was removed from DOM
+            expect(mockSceneElement.remove).toHaveBeenCalled();
+            expect(mockSceneElement.hide).not.toHaveBeenCalled();
+            expect(mockSceneElement.css).not.toHaveBeenCalledWith('opacity', 0);
+        }, 10000);
+
+        test('should properly handle hide transition without remove option', async () => {
+            const scene = {
+                text: "Test Scene",
+                arrive: { transition: "show" },
+                dwell: 100,
+                depart: { transition: "hide", remove: false }
+            };
+
+            await sceneHandler.processScene(scene);
+            
+            // Verify element was hidden but not removed
+            expect(mockSceneElement.hide).toHaveBeenCalled();
+            expect(mockSceneElement.remove).not.toHaveBeenCalled();
+            expect(mockSceneElement.css).not.toHaveBeenCalledWith('opacity', 0);
+        }, 10000);
     });
 
     describe('Scene Restart', () => {
