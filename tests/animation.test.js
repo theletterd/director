@@ -412,7 +412,7 @@ describe('SceneHandler', () => {
             let visualComplete = false;
 
             // Mock audio handler to simulate delayed completion
-            sceneHandler.audioHandler.fadeOutTrack = jest.fn(() => {
+            sceneHandler.audioHandler.handleAudio = jest.fn(() => {
                 return new Promise(resolve => {
                     setTimeout(() => {
                         audioComplete = true;
@@ -440,6 +440,154 @@ describe('SceneHandler', () => {
             expect(endTime - startTime).toBeLessThan(1000);
             // Audio might not be complete yet
             expect(audioComplete).toBe(false);
+        });
+
+        it('should fade out specific audio track with fade_audio directive', async () => {
+            const scene = {
+                directive: 'fade_audio',
+                trackId: 'test_track',
+                duration: 1000,
+                wait_for_fade: true
+            };
+
+            // Mock audio handler
+            let fadeOutCalled = false;
+            sceneHandler.audioHandler.handleAudio = jest.fn((audio) => {
+                fadeOutCalled = true;
+                expect(audio.trackId).toBe('test_track');
+                expect(audio.fadeOut).toBe(1000);
+                return Promise.resolve();
+            });
+
+            // Process the scene
+            await sceneHandler.handleDirective(scene);
+
+            // Verify fade was called
+            expect(fadeOutCalled).toBe(true);
+            expect(sceneHandler.audioHandler.handleAudio).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    trackId: 'test_track',
+                    fadeOut: 1000
+                })
+            );
+        });
+
+        it('should fade out all audio tracks with fade_all_audio directive', async () => {
+            const scene = {
+                directive: 'fade_all_audio',
+                duration: 1000
+            };
+
+            // Mock audio handler
+            const trackIds = ['track1', 'track2', 'track3'];
+            sceneHandler.audioHandler.getAllTrackIds = jest.fn().mockReturnValue(trackIds);
+            
+            let fadeOutCalls = 0;
+            sceneHandler.audioHandler.fadeOutTrack = jest.fn((trackId, duration) => {
+                fadeOutCalls++;
+                expect(trackIds).toContain(trackId);
+                expect(duration).toBe(1000);
+                return Promise.resolve();
+            });
+
+            // Process the scene
+            await sceneHandler.handleDirective(scene);
+
+            // Verify fade was called for each track
+            expect(fadeOutCalls).toBe(trackIds.length);
+            trackIds.forEach(trackId => {
+                expect(sceneHandler.audioHandler.fadeOutTrack).toHaveBeenCalledWith(trackId, 1000);
+            });
+        });
+
+        it('should handle fade_all_audio with no tracks', async () => {
+            const scene = {
+                directive: 'fade_all_audio',
+                duration: 1000
+            };
+
+            // Mock audio handler with no tracks
+            sceneHandler.audioHandler.getAllTrackIds = jest.fn().mockReturnValue([]);
+            sceneHandler.audioHandler.fadeOutTrack = jest.fn();
+
+            // Process the scene
+            await sceneHandler.handleDirective(scene);
+
+            // Verify no fade calls were made
+            expect(sceneHandler.audioHandler.fadeOutTrack).not.toHaveBeenCalled();
+        });
+
+        it('should wait for fade completion when wait_for_fade is true', async () => {
+            // Create a jQuery element with mocked methods
+            const element = $('<div>');
+            element.on = jest.fn((event, handler) => {
+                element.transitionHandler = handler;
+            });
+            element.off = jest.fn();
+            element.css = jest.fn();
+            element.show = jest.fn(() => element);
+            element[0] = { offsetHeight: 100 }; // Mock for force reflow
+
+            // Mock screen.find to return our element
+            mockScreen.find = jest.fn().mockReturnValue(element);
+
+            const scene = {
+                arrive: {
+                    transition: "fade",
+                    duration: 1000,
+                    wait_for_fade: true
+                }
+            };
+
+            // Start processing the scene
+            const scenePromise = sceneHandler.processScene(scene);
+            
+            // Wait a tick for the transition setup
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            // Verify transition was set up
+            expect(element.css).toHaveBeenCalledWith({
+                'transition': 'opacity 1000ms linear',
+                'opacity': 0
+            });
+            expect(element.css).toHaveBeenCalledWith('opacity', 1);
+
+            // Trigger the transition end
+            element.transitionHandler();
+
+            // Wait for scene processing to complete
+            await scenePromise;
+
+            // Verify cleanup
+            expect(element.off).toHaveBeenCalledWith('transitionend', element.transitionHandler);
+        });
+
+        it('should not wait for fade completion when wait_for_fade is false', async () => {
+            const scene = {
+                directive: 'fade_audio',
+                trackId: 'test_track',
+                duration: 1000,
+                wait_for_fade: false
+            };
+
+            let fadeComplete = false;
+            sceneHandler.audioHandler.handleAudio = jest.fn(() => {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                        fadeComplete = true;
+                        resolve();
+                    }, 100);
+                });
+            });
+
+            const startTime = Date.now();
+            await sceneHandler.handleDirective(scene);
+            const endTime = Date.now();
+
+            // Verify we didn't wait for the fade to complete
+            expect(endTime - startTime).toBeLessThan(100);
+            // Fade might not be complete yet
+            expect(fadeComplete).toBe(false);
         });
     });
 

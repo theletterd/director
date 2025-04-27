@@ -167,14 +167,23 @@ class SceneHandler {
                     logger.debug(`Fading audio track: ${scene.trackId} over ${scene.duration || 2000}ms`);
                     try {
                         if (scene.trackId) {
-                            // Start the fade
-                            this.audioHandler.fadeOutTrack(scene.trackId, scene.duration || 2000);
-                            // Only wait if wait_for_fade is true
+                            // Create audio config for fade out
+                            const audio = {
+                                trackId: scene.trackId,
+                                fadeOut: scene.duration || 2000
+                            };
+
+                            // Start the fade and wait if requested
                             if (scene.wait_for_fade) {
-                                logger.debug(`Waiting for ${scene.duration || 2000}ms for fade to complete`);
-                                await this.sleep(scene.duration || 2000);
+                                logger.debug(`Waiting for fade to complete`);
+                                await this.handleAudio(audio, "departure");
                                 // After fade is complete, ensure the track is stopped
                                 this.audioHandler.stopTrack(scene.trackId);
+                            } else {
+                                // Start fade but don't wait
+                                this.handleAudio(audio, "departure").catch(error => {
+                                    logger.error("Error during fade_audio:", error);
+                                });
                             }
                         }
                     } catch (error) {

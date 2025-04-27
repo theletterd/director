@@ -104,7 +104,8 @@ Available transitions in `arrive` and `depart`:
   ```javascript
   {
       transition: "fade",
-      duration: 1000  // milliseconds
+      duration: 1000,  // milliseconds
+      wait_for_fade: true  // optional, wait for fade to complete
   }
   ```
 - `type`: Typewriter effect
@@ -114,6 +115,7 @@ Available transitions in `arrive` and `depart`:
       ms_per_char: 50  // milliseconds per character
   }
   ```
+  Note: In departure phase, type transition simply fades out the text.
 - `show`: Immediate appearance
   ```javascript
   {
@@ -123,7 +125,14 @@ Available transitions in `arrive` and `depart`:
 - `hide`: Immediate disappearance
   ```javascript
   {
-      transition: "hide"
+      transition: "hide",
+      remove: true  // optional, remove element from DOM
+  }
+  ```
+- `keep`: Keep element visible
+  ```javascript
+  {
+      transition: "keep"
   }
   ```
 
@@ -143,6 +152,12 @@ Special scene commands that control the presentation:
       directive: "blankline"
   }
   ```
+- `fade_all`: Fade out all elements on screen
+  ```javascript
+  {
+      directive: "fade_all"
+  }
+  ```
 - `stop_audio`: Stop all audio tracks
   ```javascript
   {
@@ -154,7 +169,8 @@ Special scene commands that control the presentation:
   {
       directive: "fade_audio",
       trackId: "background",
-      duration: 2000  // milliseconds
+      duration: 2000,  // milliseconds
+      wait_for_fade: true  // optional, wait for fade to complete
   }
   ```
 - `fade_all_audio`: Fade out all audio tracks
@@ -176,7 +192,8 @@ Audio can be configured in both `arrive` and `depart`:
         volume: 0.8,
         loop: true,
         fadeIn: 1000,  // milliseconds
-        fadeOut: 1000  // milliseconds
+        fadeOut: 1000,  // milliseconds
+        wait_for_audio: true  // optional, wait for audio to complete
     }
 }
 ```

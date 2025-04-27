@@ -70,7 +70,7 @@ const scenes = [
             audio: {
                 trackId: "creepy_siren",
                 volume: 0.5,
-                fadeIn: 500
+                fadeIn: 2500
             }
         },
         dwell: 2000,
