@@ -609,6 +609,9 @@ class SceneHandler {
             return;
         }
 
+        // Check for audio usage before starting
+        this.audioHandler.checkAudioUsage(scenes);
+
         this.scenes = scenes;
         this.currentSceneIndex = startIndex;
         this.isPlaying = true;

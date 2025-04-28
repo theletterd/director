@@ -9,10 +9,11 @@ class AudioHandler {
         this.pendingTracks = new Map(); // Store tracks waiting for user interaction
         this.isAudioAllowed = false;
         this.onAudioEnabled = null; // Callback for when audio is enabled
+        this.hasAudioContent = false; // Flag to track if any audio content exists
 
         try {
             this.initializeAudioContext();
-            this.setupUserInteraction();
+            // Don't setup user interaction yet - wait for checkAudioUsage
         } catch (error) {
             if (typeof logger !== 'undefined') {
                 logger.error("[Audio] Error during initialization:", error);
@@ -477,6 +478,30 @@ class AudioHandler {
         const clampedPan = Math.max(-1, Math.min(1, pan)); // Clamp between -1 and 1
         logger.debug(`[Audio] Setting pan for track ${trackId} to ${clampedPan}`);
         track.pannerNode.pan.value = clampedPan;
+    }
+
+    // New method to check if any scenes use audio
+    checkAudioUsage(scenes) {
+        if (!scenes || !Array.isArray(scenes)) {
+            logger.warn("[Audio] Invalid scenes array provided to checkAudioUsage");
+            return;
+        }
+
+        // Check each scene for audio configuration
+        for (const scene of scenes) {
+            if (scene.arrive?.audio || scene.depart?.audio) {
+                this.hasAudioContent = true;
+                break;
+            }
+        }
+
+        // Only setup user interaction if audio content exists
+        if (this.hasAudioContent) {
+            logger.info("[Audio] Audio content detected, setting up user interaction");
+            this.setupUserInteraction();
+        } else {
+            logger.info("[Audio] No audio content detected, skipping user interaction setup");
+        }
     }
 }
 

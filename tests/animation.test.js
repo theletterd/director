@@ -757,4 +757,126 @@ describe('SceneHandler', () => {
         // Clean up
         sceneHandler.stop();
     });
+
+    describe('Audio Button Visibility', () => {
+        let screen;
+        let audioHandler;
+        let sceneHandler;
+        let $;
+
+        beforeEach(() => {
+            // Mock document.body
+            document.body.innerHTML = '<div id="screen"></div>';
+            screen = document.getElementById('screen');
+
+            // Mock jQuery
+            $ = element => ({
+                appendTo: () => {},
+                css: () => {},
+                show: () => {},
+                empty: () => {},
+                remove: () => {},
+                on: () => {},
+                off: () => {},
+                fadeOut: (duration, callback) => callback && callback(),
+                is: () => true,
+                find: () => [],
+                append: () => {},
+                text: () => {},
+                hide: () => {},
+                get: () => [element],
+                length: 1
+            });
+
+            // Initialize handlers
+            audioHandler = new AudioHandler();
+            sceneHandler = new SceneHandler($(screen), audioHandler);
+        });
+
+        afterEach(() => {
+            // Clean up
+            document.body.innerHTML = '';
+            if (audioHandler) {
+                audioHandler.stopAllTracks();
+            }
+        });
+
+        it('should not show audio button when no audio content exists', () => {
+            const scenes = [
+                {
+                    text: "Scene without audio",
+                    arrive: {
+                        transition: "fade",
+                        duration: 1000
+                    },
+                    dwell: 2000
+                }
+            ];
+
+            // Just check audio usage without playing scenes
+            audioHandler.checkAudioUsage(scenes);
+            
+            // Check that audio button is not present
+            const audioButtons = document.querySelectorAll('button');
+            expect(Array.from(audioButtons).filter(button => 
+                button.textContent.includes('Click to Enable Audio')
+            ).length).toBe(0);
+        });
+
+        it('should show audio button when audio content exists', () => {
+            const scenes = [
+                {
+                    text: "Scene with audio",
+                    arrive: {
+                        transition: "fade",
+                        duration: 1000,
+                        audio: {
+                            trackId: "test_track",
+                            volume: 0.5
+                        }
+                    },
+                    dwell: 2000
+                }
+            ];
+
+            // Just check audio usage without playing scenes
+            audioHandler.checkAudioUsage(scenes);
+            
+            // Check that audio button is present
+            const audioButtons = document.querySelectorAll('button');
+            expect(Array.from(audioButtons).filter(button => 
+                button.textContent.includes('Click to Enable Audio')
+            ).length).toBe(1);
+        });
+
+        it('should show audio button when audio exists in departure phase', () => {
+            const scenes = [
+                {
+                    text: "Scene with departure audio",
+                    arrive: {
+                        transition: "fade",
+                        duration: 1000
+                    },
+                    dwell: 2000,
+                    depart: {
+                        transition: "fade",
+                        duration: 1000,
+                        audio: {
+                            trackId: "test_track",
+                            volume: 0.5
+                        }
+                    }
+                }
+            ];
+
+            // Just check audio usage without playing scenes
+            audioHandler.checkAudioUsage(scenes);
+            
+            // Check that audio button is present
+            const audioButtons = document.querySelectorAll('button');
+            expect(Array.from(audioButtons).filter(button => 
+                button.textContent.includes('Click to Enable Audio')
+            ).length).toBe(1);
+        });
+    });
 }); 
