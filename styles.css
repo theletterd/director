@@ -41,3 +41,22 @@ div {
 	background-color: #f5f5dc;
 	color: #000;
 }
+
+/* Ziggy Story specific styles */
+.ziggy-story {
+	background-color: #000;
+	color: #0f0 !important;
+	text-shadow: 0 0 3px #0f0;
+}
+
+.ziggy-story .scene {
+	transition: opacity 1s ease-in-out;
+}
+
+.ziggy-story .scene.arriving {
+	opacity: 0;
+}
+
+.ziggy-story .scene.departing {
+	opacity: 0;
+}

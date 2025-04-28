@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ziggy's Story</title>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="logger.js"></script>
+    <script src="audioHandler.js"></script>
+    <script src="sceneHandler.js"></script>
+    <script src="animations.js"></script>
+    <script src="audio_library.js"></script>
+    <script src="ziggy.js"></script>
+    <script src="director.js"></script>
+    <style>
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #screen {
+            max-width: 800px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            background-color: #000;
+
+        }
+        .scene {
+            margin-bottom: 1em;
+        }
+    </style>
+</head>
+<body>
+    <div id="screen" class="ziggy-story"></div>
+</body>
+</html> 
