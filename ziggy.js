@@ -1,7 +1,7 @@
 const scenes = [
     {
       text: "Initializing World Engine...",
-      arrive: { transition: "type", ms_per_char: 40 },
+      arrive: { transition: "type", ms_per_char: 40, show_cursor: true },
       dwell: 1500,
       depart: { transition: "hide", duration: 800, remove: true }
     },

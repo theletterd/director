@@ -112,7 +112,8 @@ Available transitions in `arrive` and `depart`:
   ```javascript
   {
       transition: "type",
-      ms_per_char: 50  // milliseconds per character
+      ms_per_char: 50,  // milliseconds per character
+      show_cursor: true  // optional, show a blinking cursor while typing
   }
   ```
   Note: In departure phase, type transition simply fades out the text.

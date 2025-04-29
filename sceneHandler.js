@@ -554,7 +554,7 @@ class SceneHandler {
                     }
                     const text = sceneElement.text();
                     sceneElement.empty();
-                    return this.typeText(sceneElement, text, config.ms_per_char || 50);
+                    return this.typeText(sceneElement, text, config.ms_per_char || 50, config.show_cursor);
                 } else {
                     sceneElement.css('opacity', 0);
                     return Promise.resolve();
@@ -691,7 +691,7 @@ class SceneHandler {
         this.audioHandler.stopAllTracks();
     }
 
-    async typeText(element, text, msPerChar) {
+    async typeText(element, text, msPerChar, showCursor = false) {
         if (!element || !text) {
             logger.warn("typeText called with invalid parameters:", { element, text });
             return;
@@ -706,12 +706,33 @@ class SceneHandler {
         // Convert text to string and split into characters
         const characters = String(text).split('');
         
+        // Create cursor element if cursor option is enabled
+        let cursor;
+        if (showCursor) {
+            cursor = $('<span>').addClass('typing-cursor').text('|');
+            element.append(cursor);
+        }
+        
         for (const character of characters) {
+            // Remove cursor before adding character if it exists
+            if (cursor) {
+                cursor.remove();
+            }
             element.append(character);
+            // Add cursor back after character if it exists
+            if (cursor) {
+                element.append(cursor);
+            }
+            
             if (!this.performanceMode) {
                 logger.debug(`Typed character: ${character}`);
             }
             await this.sleep(msPerChar);
+        }
+        
+        // Remove cursor when done typing if it exists
+        if (cursor) {
+            cursor.remove();
         }
         
         if (!this.performanceMode) {

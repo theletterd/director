@@ -589,6 +589,45 @@ describe('SceneHandler', () => {
             // Fade might not be complete yet
             expect(fadeComplete).toBe(false);
         });
+
+        test('type transition with cursor', async () => {
+            const scene = {
+                text: "Test text",
+                arrive: {
+                    transition: "type",
+                    ms_per_char: 50,
+                    show_cursor: true
+                }
+            };
+
+            await sceneHandler.processScene(scene);
+
+            // Verify that cursor was added and removed
+            expect(mockSceneElement.append).toHaveBeenCalledWith(expect.any(Object));
+            expect(mockSceneElement.append).toHaveBeenCalledWith(expect.objectContaining({
+                addClass: expect.any(Function),
+                text: expect.any(Function)
+            }));
+        });
+
+        test('type transition without cursor', async () => {
+            const scene = {
+                text: "Test text",
+                arrive: {
+                    transition: "type",
+                    ms_per_char: 50,
+                    show_cursor: false
+                }
+            };
+
+            await sceneHandler.processScene(scene);
+
+            // Verify that cursor was not added
+            expect(mockSceneElement.append).not.toHaveBeenCalledWith(expect.objectContaining({
+                addClass: expect.any(Function),
+                text: expect.any(Function)
+            }));
+        });
     });
 
     describe('Scene Restart', () => {
