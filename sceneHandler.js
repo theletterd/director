@@ -427,7 +427,6 @@ class SceneHandler {
         this.log(`[Animation] Starting animation with frames: ${animation.frames.length}`);
         this.log(`[Animation] Frame length (ms): ${animation.frame_length_ms}`);
 
-        let isAnimating = true;
         let currentFrame = 0;
         const totalFrames = animation.frames.length;
         const frameLength = this.getAdjustedDuration(animation.frame_length_ms);
@@ -443,8 +442,8 @@ class SceneHandler {
 
         const animate = async (frameIndex) => {
             try {
-                if (!isAnimating || !element.is(':visible')) {
-                    this.log("[Animation] Stopped - element not visible or animation cancelled");
+                if (!element.is(':visible')) {
+                    this.log("[Animation] Stopped - element not visible");
                     return;
                 }
                 
@@ -461,7 +460,6 @@ class SceneHandler {
                 animate(nextFrame);
             } catch (error) {
                 this.error("[Animation] Error: " + error.toString());
-                isAnimating = false;
             }
         };
 
