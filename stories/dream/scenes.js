@@ -1,6 +1,9 @@
 var scenes = [
 	{
-		text: "",
+		content: {
+			frames: mountain_frames,
+			frame_length_ms: 500
+		},
 		arrive: {
 			transition: "fade",
 			duration: 2000,
@@ -10,15 +13,11 @@ var scenes = [
 			transition: "fade",
 			duration: 4000,
 			remove: false,
-		},
-		animation: {
-			frames: mountain_frames,
-			frame_length_ms: 500
 		}
 	},
 	{directive: "clear"},
 	{
-		text: "...",
+		content: "...",
 		arrive: {
 			transition: "type",
 			ms_per_char: 1250
@@ -31,7 +30,7 @@ var scenes = [
 		}
 	},
 	{
-		text: "What am I?",
+		content: "What am I?",
 		arrive: {
 			transition: "fade",
 			duration: 2000
@@ -42,10 +41,9 @@ var scenes = [
 			duration: 1000,
 			remove: false,
 		}
-
 	},
 	{
-		text: "   Where did I come from?",
+		content: "   Where did I come from?",
 		arrive: {
 			transition: "fade",
 			duration: 2000
@@ -56,11 +54,9 @@ var scenes = [
 			duration: 1000,
 			remove: false,
 		}
-
 	},
-
 	{
-		text: "Is this a dream?",
+		content: "Is this a dream?",
 		arrive: {
 			transition: "fade",
 			duration: 2000
@@ -71,11 +67,10 @@ var scenes = [
 			duration: 1000,
 			remove: false,
 		}
-
 	},
 	{directive: "fade_all"},
 	{
-		text: "This seems like a dream, but I'm not sure it actually is.",
+		content: "This seems like a dream, but I'm not sure it actually is.",
 		arrive: {
 			transition: "type",
 			ms_per_char: 20,
@@ -86,10 +81,9 @@ var scenes = [
 			duration: 1000,
 			remove: false,
 		}
-
 	},
 	{
-		text: "Like waves on a shore...",
+		content: "Like waves on a shore...",
 		arrive: {
 			transition: "type",
 			ms_per_char: 20,
@@ -100,11 +94,13 @@ var scenes = [
 			duration: 1000,
 			remove: false,
 		}
-
 	},
 	{directive: "blankline"},
 	{
-		text: "",
+		content: {
+			frames: boat_frames,
+			frame_length_ms: 70
+		},
 		arrive: {
 			transition: "fade",
 			duration: 2000,
@@ -114,15 +110,11 @@ var scenes = [
 			transition: "keep",
 			duration: 2000,
 			remove: false,
-		},
-		animation: {
-			frames: boat_frames,
-			frame_length_ms: 70
 		}
 	},
 	{directive: "blankline"},
 	{
-		text: "The patterns keep repeating...",
+		content: "The patterns keep repeating...",
 		arrive: {
 			transition: "type",
 			ms_per_char: 20,
@@ -133,11 +125,10 @@ var scenes = [
 			duration: 1000,
 			remove: false,
 		}
-
 	},
 	{directive: "clear"},
 	{
-		text: "Over...",
+		content: "Over...",
 		arrive: {
 			transition: "type",
 			ms_per_char: 20,
@@ -148,11 +139,10 @@ var scenes = [
 			duration: 1000,
 			remove: false,
 		}
-
 	},
 	{directive: "blankline"},
 	{
-		text: "and over...",
+		content: "and over...",
 		arrive: {
 			transition: "type",
 			ms_per_char: 20,
@@ -163,11 +153,10 @@ var scenes = [
 			duration: 1000,
 			remove: false,
 		}
-
 	},
 	{directive: "blankline"},
 	{
-		text: "...and over...",
+		content: "...and over...",
 		arrive: {
 			transition: "type",
 			ms_per_char: 20,
@@ -178,11 +167,10 @@ var scenes = [
 			duration: 1000,
 			remove: false,
 		}
-
 	},
 	{directive: "fade_all"},
 	{
-		text: "What am I?",
+		content: "What am I?",
 		arrive: {
 			transition: "fade",
 			duration: 2000
@@ -196,7 +184,7 @@ var scenes = [
 	},
 	{directive: "fade_all"},
 	{
-		text: "I AM A DINOSAUR!",
+		content: "I AM A DINOSAUR!",
 		arrive: {
 			transition: "show",
 		},
@@ -206,22 +194,21 @@ var scenes = [
 		}
 	},
 	{
-		text: "",
+		content: {
+			frames: dinosaur_frames,
+			frame_length_ms: 50
+		},
 		arrive: {
 			transition: "show",
 		},
 		dwell: 5000,
 		depart: {
 			transition: "keep",
-		},
-		animation: {
-			frames: dinosaur_frames,
-			frame_length_ms: 50
 		}
 	},
 	{directive: "fade_all"},
 	{
-		text: "...and we begin again.",
+		content: "...and we begin again.",
 		arrive: {
 			transition: "fade",
 			duration: 3000,

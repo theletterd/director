@@ -4,7 +4,7 @@
 const scenes = [
     // Scene 1: Introduction with ambient background
     {
-        text: "The Forest at Night",
+        content: "The Forest at Night",
         arrive: {
             transition: "type", 
             audio: {
@@ -23,7 +23,7 @@ const scenes = [
 
     // Scene 2: Add crickets to the background
     {
-        text: "Crickets chirp in the distance...",
+        content: "Crickets chirp in the distance...",
         arrive: {
             transition: "type",
             ms_per_char: 50,
@@ -43,7 +43,7 @@ const scenes = [
 
     // Scene 3: Add owl sound effect
     {
-        text: "An owl hoots in the night...",
+        content: "An owl hoots in the night...",
         arrive: {
             transition: "type",
             ms_per_char: 50,
@@ -63,7 +63,7 @@ const scenes = [
 
     // Scene 3.5: Creepy siren with fade in/out
     {
-        text: "A mysterious sound grows louder...",
+        content: "A mysterious sound grows louder...",
         arrive: {
             transition: "type",
             ms_per_char: 50,
@@ -87,7 +87,7 @@ const scenes = [
 
     // Scene 4: Add rustling leaves
     {
-        text: "Something stirs in the darkness...",
+        content: "Something stirs in the darkness...",
         arrive: {
             transition: "type",
             ms_per_char: 50,
@@ -113,7 +113,7 @@ const scenes = [
 
     // Scene 5: Add footsteps
     {
-        text: "Footsteps approach...",
+        content: "Footsteps approach...",
         arrive: {
             transition: "type",
             ms_per_char: 50,
@@ -141,7 +141,7 @@ const scenes = [
 
     // Scene 7: Fade out footsteps and add surprise sound
     {
-        text: "Suddenly...",
+        content: "Suddenly...",
         arrive: {
             transition: "type",
             ms_per_char: 30
@@ -156,7 +156,7 @@ const scenes = [
 
     // Scene 8: Wolf howl
     {
-        text: "A lone wolf howls in the distance...",
+        content: "A lone wolf howls in the distance...",
         arrive: {
             transition: "type",
             ms_per_char: 50,
@@ -175,7 +175,7 @@ const scenes = [
 
     // Scene 9: Final scene with all remaining sounds
     {
-        text: "The forest returns to its peaceful state...",
+        content: "The forest returns to its peaceful state...",
         arrive: {
             transition: "type",
             ms_per_char: 50
@@ -196,7 +196,7 @@ const scenes = [
 
     // Scene 11: Goodbye message
     {
-        text: "Goodbye!",
+        content: "Goodbye!",
         arrive: {
             transition: "fade",
             duration: 500,

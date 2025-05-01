@@ -73,21 +73,24 @@ class SceneHandler {
             const sceneElement = this.createSceneElement(scene);
             logger.info(`[Scene ${this.currentSceneIndex}] Element creation took ${(performance.now() - phaseStartTime).toFixed(2)}ms`);
 
+            // Set text content first if it exists
+            if (scene.content) {
+                phaseStartTime = performance.now();
+                if (typeof scene.content === 'object' && scene.content.frames) {
+                    // Handle animation content
+                    await this.handleAnimation(sceneElement, scene.content);
+                } else {
+                    // Handle text content
+                    sceneElement.text(scene.content);
+                }
+                logger.info(`[Scene ${this.currentSceneIndex}] Content took ${(performance.now() - phaseStartTime).toFixed(2)}ms`);
+            }
+
             // Handle arrival phase
             if (scene.arrive) {
                 phaseStartTime = performance.now();
                 await this.handleArrival(sceneElement, scene.arrive);
                 logger.info(`[Scene ${this.currentSceneIndex}] Arrival took ${(performance.now() - phaseStartTime).toFixed(2)}ms`);
-            }
-
-            // Handle animation if present
-            if (scene.animation) {
-                phaseStartTime = performance.now();
-                if (!this.performanceMode) {
-                    logger.debug("[Scene] Found animation config:", scene.animation);
-                }
-                await this.handleAnimation(sceneElement, scene.animation);
-                logger.info(`[Scene ${this.currentSceneIndex}] Animation took ${(performance.now() - phaseStartTime).toFixed(2)}ms`);
             }
 
             // Wait for dwell time
@@ -278,14 +281,8 @@ class SceneHandler {
             return null;
         }
 
-        logger.debug("[Scene] Creating element with text:", scene);
+        logger.debug("[Scene] Creating element");
         const element = $("<div>").addClass("scene");
-
-        // Set text content
-        const text = typeof scene === 'object' ? scene.text : scene;
-        if (text !== undefined) {
-            element.text(text);
-        }
 
         // Add default styling
         element.css({
@@ -371,6 +368,11 @@ class SceneHandler {
                 await this.handleAudio(arrival.audio, "arrival");
             }
 
+            // Start animation first if present
+            if (arrival.animation) {
+                await this.handleAnimation(sceneElement, arrival.animation);
+            }
+
             // Handle transition
             if (arrival.transition) {
                 await this.handleTransition(sceneElement, { ...arrival, type: "in" });
@@ -397,6 +399,15 @@ class SceneHandler {
         let isAnimating = true;
         let currentFrame = 0;
         const totalFrames = animation.frames.length;
+
+        // Wait for any ongoing transition to complete
+        await new Promise(resolve => {
+            if (element.css('transition') && element.css('opacity') !== '1') {
+                element.on('transitionend', resolve, { once: true });
+            } else {
+                resolve();
+            }
+        });
 
         const animate = async (frameIndex) => {
             try {
@@ -502,15 +513,14 @@ class SceneHandler {
                     const startOpacity = config.type === "in" ? 0 : 1;
                     const endOpacity = config.type === "in" ? 1 : 0;
 
+                    // Ensure element is visible and at start opacity
+                    sceneElement.show().css('opacity', startOpacity);
+
                     // Set up the transition
                     sceneElement.css({
                         'transition': `opacity ${duration}ms linear`,
                         'opacity': startOpacity
                     });
-
-                    if (config.type === "in") {
-                        sceneElement.show();
-                    }
 
                     // Force a reflow
                     sceneElement[0].offsetHeight;
@@ -552,8 +562,12 @@ class SceneHandler {
                     if (!this.performanceMode) {
                         logger.debug(`[Transition] Typing with ${config.ms_per_char || 50}ms per character`);
                     }
+                    // Get the text from the scene element
                     const text = sceneElement.text();
-                    sceneElement.empty();
+                    if (!text) {
+                        logger.warn("[Transition] No text content to type");
+                        return Promise.resolve();
+                    }
                     return this.typeText(sceneElement, text, config.ms_per_char || 50, config.show_cursor);
                 } else {
                     sceneElement.css('opacity', 0);
@@ -712,6 +726,9 @@ class SceneHandler {
             cursor = $('<span>').addClass('typing-cursor').text('|');
             element.append(cursor);
         }
+        
+        // Clear any existing content
+        element.empty();
         
         for (const character of characters) {
             // Remove cursor before adding character if it exists

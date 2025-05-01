@@ -39,7 +39,10 @@ const test_frames = [
 // Single test scene with animation
 scenes = [
     {
-        text: "",
+        content: {
+            frames: test_frames,
+            frame_length_ms: 200  // Faster animation
+        },
         arrive: {
             transition: "show"
         },
@@ -47,10 +50,6 @@ scenes = [
         depart: {
             transition: "hide",
             remove: true
-        },
-        animation: {
-            frames: test_frames,
-            frame_length_ms: 200  // Faster animation
         }
     }
 ]; 

@@ -71,7 +71,7 @@ director/
 ```javascript
 const scenes = [
     {
-        text: "Hello, World!",
+        content: "Hello, World!",
         arrive: {
             transition: "type",
             ms_per_char: 100
@@ -89,11 +89,10 @@ const scenes = [
 
 ### Basic Scene Properties
 
-- `text`: The text content to display
+- `content`: The text content, or animation frames to display
 - `arrive`: Configuration for how the scene appears
 - `dwell`: How long to show the scene (in milliseconds)
 - `depart`: Configuration for how the scene disappears
-- `animation`: Optional frame-based animation configuration
 - `directive`: Special scene commands (see below)
 
 ### Transitions
@@ -205,7 +204,7 @@ Frame-based animations can be added to any scene:
 
 ```javascript
 {
-    animation: {
+    content: {
         frames: ["frame1", "frame2", "frame3"],
         frame_length_ms: 100  // milliseconds per frame
     }
@@ -219,7 +218,7 @@ Here's a complete example showing various features:
 ```javascript
 const scenes = [
     {
-        text: "Welcome to the presentation",
+        content: "Welcome to the presentation",
         arrive: {
             transition: "type",
             ms_per_char: 50,
@@ -238,14 +237,13 @@ const scenes = [
         directive: "blankline"
     },
     {
-        text: "Let's begin...",
+        content: {
+            frames: ["(•_•)", "( •_•)>⌐■-■", "(⌐■_■)"],
+            frame_length_ms: 500
+        }
         arrive: {
             transition: "fade",
             duration: 500
-        },
-        animation: {
-            frames: ["(•_•)", "( •_•)>⌐■-■", "(⌐■_■)"],
-            frame_length_ms: 500
         },
         dwell: 2000,
         depart: {

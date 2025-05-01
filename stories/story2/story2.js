@@ -1,6 +1,6 @@
 scenes = [
 	{
-		text: "Hey buddy, you ok?",
+		content: "Hey buddy, you ok?",
 		arrive: {
 			transition: "type",
 			ms_per_char: 50,
@@ -12,7 +12,7 @@ scenes = [
 	},
 	{directive: "blankline"},
 	{
-		text: "...",
+		content: "...",
 		arrive: {
 			transition: "type",
 			ms_per_char: 200,
@@ -24,7 +24,7 @@ scenes = [
 	},
 	{directive: "blankline"},
 	{
-		text: "Hey buddy...?",
+		content: "Hey buddy...?",
 		arrive: {
 			transition: "fade",
 			duration: 500
@@ -36,7 +36,13 @@ scenes = [
 	},
 	{directive: "clear"},
 	{
-		text: "",
+		content: {
+			text: "",
+			animation: {
+				frames: hey_frames,
+				frame_length_ms: 50
+			}
+		},
 		arrive: {
 			transition: "show"
 		},
@@ -44,11 +50,6 @@ scenes = [
 		depart: {
 			transition: "hide",
 			remove: true
-		},
-		animation: {
-			frames: hey_frames,
-			frame_length_ms: 50
 		}
-	},
-
+	}
 ];
