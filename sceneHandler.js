@@ -11,6 +11,7 @@ class SceneHandler {
         this.isPaused = false;
         this.performanceMode = false;
         this.isRestarting = false;
+        this.speedMultiplier = 1.0;
 
         // Set up logging
         this.logger = typeof logger !== 'undefined' ? logger : console;
@@ -30,6 +31,19 @@ class SceneHandler {
 
     setPerformanceMode(enabled) {
         this.performanceMode = enabled;
+    }
+
+    setSpeedMultiplier(multiplier) {
+        if (multiplier > 0) {
+            this.speedMultiplier = multiplier;
+            logger.info(`[Scene] Speed multiplier set to: ${multiplier}`);
+        } else {
+            logger.warn(`[Scene] Invalid speed multiplier: ${multiplier}`);
+        }
+    }
+
+    getAdjustedDuration(duration) {
+        return Math.max(1, Math.floor(duration / this.speedMultiplier));
     }
 
     log(message) {
@@ -236,7 +250,23 @@ class SceneHandler {
     async fadeAllElements() {
         logger.debug("Fading all elements");
         const elements = this.screen.find('div');
-        const duration = 2000;
+        
+        // If no elements, resolve immediately
+        if (!elements.length) {
+            logger.debug("No elements to fade");
+            return;
+        }
+
+        // Check if all elements are already at opacity 0
+        const allAlreadyFaded = elements.css('opacity') === '0';
+
+        if (allAlreadyFaded) {
+            logger.debug("All elements already faded out");
+            elements.remove();
+            return;
+        }
+
+        const duration = this.getAdjustedDuration(2000);
 
         return new Promise(resolve => {
             // Set up transitions for all elements
@@ -245,8 +275,10 @@ class SceneHandler {
                 'opacity': 1
             });
 
-            // Force a reflow
-            elements[0].offsetHeight;
+            // Force a reflow on the first element
+            if (elements[0] && elements[0].offsetHeight !== undefined) {
+                elements[0].offsetHeight;
+            }
 
             // Start the fade
             elements.css('opacity', 0);
@@ -398,6 +430,7 @@ class SceneHandler {
         let isAnimating = true;
         let currentFrame = 0;
         const totalFrames = animation.frames.length;
+        const frameLength = this.getAdjustedDuration(animation.frame_length_ms);
 
         // Wait for any ongoing transition to complete
         await new Promise(resolve => {
@@ -424,7 +457,7 @@ class SceneHandler {
                 const nextFrame = (frameIndex + 1) % totalFrames;
 
                 // Schedule next frame
-                await new Promise(resolve => setTimeout(resolve, animation.frame_length_ms));
+                await new Promise(resolve => setTimeout(resolve, frameLength));
                 animate(nextFrame);
             } catch (error) {
                 this.error("[Animation] Error: " + error.toString());
@@ -508,7 +541,7 @@ class SceneHandler {
                 }
                 return new Promise(resolve => {
                     const startTime = performance.now();
-                    const duration = config.duration || 1000;
+                    const duration = this.getAdjustedDuration(config.duration || 1000);
                     const startOpacity = config.type === "in" ? 0 : 1;
                     const endOpacity = config.type === "in" ? 1 : 0;
 
@@ -567,7 +600,7 @@ class SceneHandler {
                         logger.warn("[Transition] No text content to type");
                         return Promise.resolve();
                     }
-                    return this.typeText(sceneElement, text, config.ms_per_char || 50, config.show_cursor);
+                    return this.typeText(sceneElement, text, this.getAdjustedDuration(config.ms_per_char || 50), config.show_cursor);
                 } else {
                     sceneElement.css('opacity', 0);
                     return Promise.resolve();
@@ -606,14 +639,8 @@ class SceneHandler {
         });
     }
 
-    sleep(ms) {
-        return new Promise(resolve => {
-            if (ms <= 0) {
-                resolve();
-                return;
-            }
-            setTimeout(resolve, ms);
-        });
+    async sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, this.getAdjustedDuration(ms)));
     }
 
     async playScenes(scenes, startIndex = 0) {

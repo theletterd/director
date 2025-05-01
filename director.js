@@ -21,10 +21,28 @@ class Director {
 		return 0;
 	}
 
+	getSpeedMultiplier() {
+		const urlParams = new URLSearchParams(window.location.search);
+		const speed = urlParams.get('speed');
+		if (speed) {
+			const multiplier = parseFloat(speed);
+			if (!isNaN(multiplier) && multiplier > 0) {
+				logger.info(`Using speed multiplier: ${multiplier}`);
+				return multiplier;
+			} else {
+				logger.warn(`Invalid speed multiplier: ${speed}`);
+			}
+		}
+		return 1.0;
+	}
+
 	async start() {
 		logger.info('Director started');
 		try {
 			const startIndex = this.getStartSceneIndex();
+			const speedMultiplier = this.getSpeedMultiplier();
+			// Set the speed multiplier in the scene handler
+			this.sceneHandler.setSpeedMultiplier(speedMultiplier);
 			// Start scenes from the specified index, audio will be queued if not enabled
 			await this.sceneHandler.playScenes(this.scenes, startIndex);
 		} catch (error) {

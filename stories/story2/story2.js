@@ -37,11 +37,8 @@ scenes = [
 	{directive: "clear"},
 	{
 		content: {
-			text: "",
-			animation: {
-				frames: hey_frames,
-				frame_length_ms: 50
-			}
+			frames: hey_frames,
+			frame_length_ms: 50
 		},
 		arrive: {
 			transition: "show"
