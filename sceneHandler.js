@@ -73,19 +73,6 @@ class SceneHandler {
             const sceneElement = this.createSceneElement(scene);
             logger.info(`[Scene ${this.currentSceneIndex}] Element creation took ${(performance.now() - phaseStartTime).toFixed(2)}ms`);
 
-            // Set text content first if it exists
-            if (scene.content) {
-                phaseStartTime = performance.now();
-                if (typeof scene.content === 'object' && scene.content.frames) {
-                    // Handle animation content
-                    await this.handleAnimation(sceneElement, scene.content);
-                } else {
-                    // Handle text content
-                    sceneElement.text(scene.content);
-                }
-                logger.info(`[Scene ${this.currentSceneIndex}] Content took ${(performance.now() - phaseStartTime).toFixed(2)}ms`);
-            }
-
             // Handle arrival phase
             if (scene.arrive) {
                 phaseStartTime = performance.now();
@@ -291,6 +278,18 @@ class SceneHandler {
             'line-height': '1.2',
             'display': 'block'
         });
+
+        // Set content if it exists
+        if (scene.content) {
+            if (typeof scene.content === 'object' && scene.content.frames) {
+                // Handle animation content
+                logger.debug("[Scene] Starting animation");
+                this.handleAnimation(element, scene.content);
+            } else {
+                // Regular text content
+                element.text(scene.content);
+            }
+        }
 
         element.appendTo(this.screen);
         logger.debug("[Scene] Element created and added to screen");

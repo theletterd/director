@@ -95,17 +95,41 @@ describe('SceneHandler', () => {
     });
 
     test('should create scene element with correct properties', () => {
-        const scene = { text: "Test Scene" };
+        const scene = { content: "Test Scene" };
         const element = sceneHandler.createSceneElement(scene);
         expect(element).toBeTruthy();
         expect(mockSceneElement.css).toHaveBeenCalled();
         expect(mockSceneElement.text).toHaveBeenCalledWith("Test Scene");
     });
 
+    test('should handle animation content in createSceneElement', () => {
+        const scene = {
+            content: {
+                frames: ["frame1", "frame2"],
+                frame_length_ms: 100
+            }
+        };
+        
+        // Mock handleAnimation
+        const originalHandleAnimation = sceneHandler.handleAnimation;
+        sceneHandler.handleAnimation = jest.fn();
+        
+        const element = sceneHandler.createSceneElement(scene);
+        expect(element).toBeTruthy();
+        expect(mockSceneElement.css).toHaveBeenCalled();
+        // Should not call text() for animation content
+        expect(mockSceneElement.text).not.toHaveBeenCalled();
+        // Should call handleAnimation with the correct parameters
+        expect(sceneHandler.handleAnimation).toHaveBeenCalledWith(element, scene.content);
+        
+        // Restore original handleAnimation
+        sceneHandler.handleAnimation = originalHandleAnimation;
+    });
+
     describe('Scene Transitions', () => {
         test('should handle fade transition and keep elements visible by default', async () => {
             const scene = {
-                text: "Test Scene",
+                content: "Test Scene",
                 arrive: { transition: "fade", duration: 100 },
                 dwell: 100,
                 depart: { transition: "fade", duration: 100 }
@@ -117,7 +141,7 @@ describe('SceneHandler', () => {
 
         test('should handle departure with looping audio', async () => {
             const scene = {
-                text: "Test Scene",
+                content: "Test Scene",
                 arrive: {
                     audio: {
                         trackId: "test",
@@ -162,7 +186,7 @@ describe('SceneHandler', () => {
 
         test('should keep element visible with keep transition', async () => {
             const scene = {
-                text: "Test Scene",
+                content: "Test Scene",
                 arrive: {
                     transition: "fade",
                     duration: 100
@@ -186,7 +210,7 @@ describe('SceneHandler', () => {
 
         test('should remove elements when explicitly requested', async () => {
             const scene = {
-                text: "Test Scene",
+                content: "Test Scene",
                 arrive: { transition: "fade", duration: 100 },
                 dwell: 100,
                 depart: { transition: "fade", duration: 100, remove: true }
@@ -198,7 +222,7 @@ describe('SceneHandler', () => {
 
         test('should wait for departure by default', async () => {
             const scene = {
-                text: "Test Scene",
+                content: "Test Scene",
                 arrive: { transition: "fade", duration: 100 },
                 dwell: 100,
                 depart: { transition: "fade", duration: 100 }
@@ -262,7 +286,7 @@ describe('SceneHandler', () => {
 
         test('should properly handle hide transition with remove option', async () => {
             const scene = {
-                text: "Test Scene",
+                content: "Test Scene",
                 arrive: { transition: "show" },
                 dwell: 100,
                 depart: { transition: "hide", remove: true }
@@ -278,7 +302,7 @@ describe('SceneHandler', () => {
 
         test('should properly handle hide transition without remove option', async () => {
             const scene = {
-                text: "Test Scene",
+                content: "Test Scene",
                 arrive: { transition: "show" },
                 dwell: 100,
                 depart: { transition: "hide", remove: false }
@@ -294,7 +318,7 @@ describe('SceneHandler', () => {
 
         it('should start audio fade and visual transition simultaneously during departure', async () => {
             const scene = {
-                text: 'Test scene',
+                content: 'Test scene',
                 depart: {
                     transition: 'fade',
                     duration: 1000,
@@ -306,7 +330,7 @@ describe('SceneHandler', () => {
                 }
             };
 
-            const element = $('<div>').text(scene.text);
+            const element = $('<div>').text(scene.content);
 
             // Mock audio handler to track when fade starts
             let audioFadeStartTime;
@@ -343,7 +367,7 @@ describe('SceneHandler', () => {
 
         it('should wait for both audio and visual transitions when wait_for_audio is true', async () => {
             const scene = {
-                text: 'Test scene',
+                content: 'Test scene',
                 depart: {
                     transition: 'fade',
                     duration: 1000,
@@ -355,7 +379,7 @@ describe('SceneHandler', () => {
                 }
             };
 
-            const element = $('<div>').text(scene.text);
+            const element = $('<div>').text(scene.content);
             let audioComplete = false;
             let visualComplete = false;
 
@@ -395,7 +419,7 @@ describe('SceneHandler', () => {
 
         it('should only wait for visual transition when wait_for_audio is false', async () => {
             const scene = {
-                text: 'Test scene',
+                content: 'Test scene',
                 depart: {
                     transition: 'fade',
                     duration: 1000,
@@ -407,7 +431,7 @@ describe('SceneHandler', () => {
                 }
             };
 
-            const element = $('<div>').text(scene.text);
+            const element = $('<div>').text(scene.content);
             let audioComplete = false;
             let visualComplete = false;
 
@@ -592,7 +616,7 @@ describe('SceneHandler', () => {
 
         test('type transition with cursor', async () => {
             const scene = {
-                text: "Test text",
+                content: "Test text",
                 arrive: {
                     transition: "type",
                     ms_per_char: 50,
@@ -612,7 +636,7 @@ describe('SceneHandler', () => {
 
         test('type transition without cursor', async () => {
             const scene = {
-                text: "Test text",
+                content: "Test text",
                 arrive: {
                     transition: "type",
                     ms_per_char: 50,
@@ -633,8 +657,8 @@ describe('SceneHandler', () => {
     describe('Scene Restart', () => {
         test('should restart scene sequence', async () => {
             const scenes = [
-                { text: "Scene 1", dwell: 100 },
-                { text: "Scene 2", dwell: 100 }
+                { content: "Scene 1", dwell: 100 },
+                { content: "Scene 2", dwell: 100 }
             ];
 
             // Mock playScenes to resolve immediately
@@ -677,7 +701,7 @@ describe('SceneHandler', () => {
 
             // Create a scene with audio that will fail
             const scene = {
-                text: 'Test scene',
+                content: 'Test scene',
                 arrive: {
                     audio: {
                         src: 'test.mp3'
@@ -706,7 +730,7 @@ describe('SceneHandler', () => {
 
         test('should still handle audio in performance mode', async () => {
             const scene = {
-                text: "Test Scene",
+                content: "Test Scene",
                 arrive: {
                     audio: { url: "test.mp3", volume: 0.5 }
                 }
@@ -721,7 +745,7 @@ describe('SceneHandler', () => {
     describe('Scene Completion', () => {
         test('should complete scene with looping audio', async () => {
             const scene = {
-                text: "Test Scene",
+                content: "Test Scene",
                 arrive: {
                     audio: {
                         trackId: "test",
@@ -762,7 +786,7 @@ describe('SceneHandler', () => {
         // Create a test scene that plays audio and then stops it
         const testScenes = [
             {
-                text: "Playing test audio...",
+                content: "Playing test audio...",
                 arrive: {
                     transition: "type",
                     ms_per_char: 50,
@@ -843,7 +867,7 @@ describe('SceneHandler', () => {
         it('should not show audio button when no audio content exists', () => {
             const scenes = [
                 {
-                    text: "Scene without audio",
+                    content: "Scene without audio",
                     arrive: {
                         transition: "fade",
                         duration: 1000
@@ -865,7 +889,7 @@ describe('SceneHandler', () => {
         it('should show audio button when audio content exists', () => {
             const scenes = [
                 {
-                    text: "Scene with audio",
+                    content: "Scene with audio",
                     arrive: {
                         transition: "fade",
                         duration: 1000,
@@ -891,7 +915,7 @@ describe('SceneHandler', () => {
         it('should show audio button when audio exists in departure phase', () => {
             const scenes = [
                 {
-                    text: "Scene with departure audio",
+                    content: "Scene with departure audio",
                     arrive: {
                         transition: "fade",
                         duration: 1000
