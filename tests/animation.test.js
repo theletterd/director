@@ -977,10 +977,8 @@ describe('SceneHandler', () => {
             audioHandler.checkAudioUsage(scenes);
             
             // Check that audio button is not present
-            const audioButtons = document.querySelectorAll('button');
-            expect(Array.from(audioButtons).filter(button => 
-                button.textContent.includes('Click to Enable Audio')
-            ).length).toBe(0);
+            const audioButtons = document.querySelectorAll('button[data-audio-enable]');
+            expect(audioButtons.length).toBe(0);
         });
 
         it('should show audio button when audio content exists', () => {
@@ -1003,40 +1001,76 @@ describe('SceneHandler', () => {
             audioHandler.checkAudioUsage(scenes);
             
             // Check that audio button is present
-            const audioButtons = document.querySelectorAll('button');
-            expect(Array.from(audioButtons).filter(button => 
-                button.textContent.includes('Click to Enable Audio')
-            ).length).toBe(1);
+            const audioButtons = document.querySelectorAll('button[data-audio-enable]');
+            expect(audioButtons.length).toBe(1);
+            expect(audioButtons[0].textContent).toContain('Click to Enable Audio');
         });
 
-        it('should show audio button when audio exists in departure phase', () => {
+        it('should remove audio button when audio is enabled', async () => {
             const scenes = [
                 {
-                    content: "Scene with departure audio",
+                    content: "Scene with audio",
                     arrive: {
-                        transition: "fade",
-                        duration: 1000
-                    },
-                    dwell: 2000,
-                    depart: {
                         transition: "fade",
                         duration: 1000,
                         audio: {
                             trackId: "test_track",
                             volume: 0.5
                         }
-                    }
+                    },
+                    dwell: 2000
                 }
             ];
 
-            // Just check audio usage without playing scenes
+            // Check audio usage to show the button
             audioHandler.checkAudioUsage(scenes);
             
-            // Check that audio button is present
-            const audioButtons = document.querySelectorAll('button');
-            expect(Array.from(audioButtons).filter(button => 
-                button.textContent.includes('Click to Enable Audio')
-            ).length).toBe(1);
+            // Get the button
+            const button = document.querySelector('button[data-audio-enable]');
+            expect(button).toBeTruthy();
+            expect(button.textContent).toContain('Click to Enable Audio');
+
+            // Simulate clicking the button
+            const clickEvent = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            });
+            button.dispatchEvent(clickEvent);
+
+            // Wait for the audio context to be resumed
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            // Check that the button is removed from the DOM
+            const remainingButtons = document.querySelectorAll('button[data-audio-enable]');
+            expect(remainingButtons.length).toBe(0);
+        });
+
+        it('should not create button when audio is already allowed', () => {
+            const scenes = [
+                {
+                    content: "Scene with audio",
+                    arrive: {
+                        transition: "fade",
+                        duration: 1000,
+                        audio: {
+                            trackId: "test_track",
+                            volume: 0.5
+                        }
+                    },
+                    dwell: 2000
+                }
+            ];
+
+            // Set audio as already allowed
+            audioHandler.isAudioAllowed = true;
+
+            // Check audio usage
+            audioHandler.checkAudioUsage(scenes);
+            
+            // Check that no button was created
+            const audioButtons = document.querySelectorAll('button[data-audio-enable]');
+            expect(audioButtons.length).toBe(0);
         });
     });
 }); 

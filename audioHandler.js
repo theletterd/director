@@ -38,21 +38,34 @@ class AudioHandler {
 
     setupUserInteraction() {
         logger.info("[Audio] Setting up user interaction handler");
-        const button = document.createElement('button');
-        button.textContent = 'Click to Enable Audio';
-        button.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            z-index: 1000;
-        `;
-        document.body.appendChild(button);
+        
+        // Don't create button if audio is already allowed
+        if (this.isAudioAllowed) {
+            logger.info("[Audio] Audio already allowed, skipping button creation");
+            return;
+        }
+        
+        // Check if button already exists
+        let button = document.querySelector('button[data-audio-enable]');
+        if (!button) {
+            button = document.createElement('button');
+            button.setAttribute('data-audio-enable', 'true');
+            button.textContent = 'Click to Enable Audio';
+            button.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 10px 20px;
+                background: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                z-index: 1000;
+            `;
+            document.body.appendChild(button);
+            logger.info("[Audio] Audio button added to DOM");
+        }
 
         button.addEventListener('click', async () => {
             try {
@@ -62,7 +75,9 @@ class AudioHandler {
                     await this.audioContext.resume();
                 }
                 this.isAudioAllowed = true;
-                button.style.display = 'none';
+                // Remove the button from the DOM
+                button.remove();
+                logger.info("[Audio] Audio button removed from DOM");
                 logger.info("[Audio] Audio enabled by user interaction");
                 
                 // Clear any existing tracks
