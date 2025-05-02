@@ -236,21 +236,22 @@ class AudioHandler {
         const { gainNode } = track;
         const duration_seconds = duration_ms / 1000;
         
-        logger.info(`[Audio] Starting fade out for track ${trackId} over ${duration_ms}ms`);
+        logger.info(`[Audio] Starting exponential fade out for track ${trackId} over ${duration_ms}ms`);
         
         // Get current gain value
         const currentGain = gainNode.gain.value;
         
-        // Set up the fade out using linearRampToValueAtTime
+        // Set up the fade out using exponentialRampToValueAtTime
         gainNode.gain.cancelScheduledValues(this.audioContext.currentTime);
         gainNode.gain.setValueAtTime(currentGain, this.audioContext.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + duration_seconds);
+        // Use a very small value (0.0001) instead of 0 to avoid the exponential ramp from reaching exactly 0
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, this.audioContext.currentTime + duration_seconds);
         
         // Return a promise that resolves when the fade out completes
         return new Promise(resolve => {
             logger.info(`[Audio] Waiting for fade out to complete for track ${trackId}`);
             
-            // Check gain value periodically until it reaches 0
+            // Check gain value periodically until it reaches near zero
             const checkGain = () => {
                 if (gainNode.gain.value <= 0.001) { // Use a small threshold to account for floating point precision
                     logger.info(`[Audio] Fade out complete for track ${trackId}, stopping track`);
@@ -275,7 +276,9 @@ class AudioHandler {
         const duration_seconds = duration_ms / 1000;
         logger.debug(`[Audio] Fading in track ${trackId} over ${duration_seconds}s (${duration_ms}ms)`);
 
-        track.gainNode.gain.linearRampToValueAtTime(
+        // Start from a very small value (0.0001) instead of 0 for exponential ramp
+        track.gainNode.gain.setValueAtTime(0.0001, this.audioContext.currentTime);
+        track.gainNode.gain.exponentialRampToValueAtTime(
             targetVolume,
             this.audioContext.currentTime + duration_seconds
         );
