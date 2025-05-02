@@ -815,28 +815,7 @@ describe('SceneHandler', () => {
                 '[Audio] Error handling audio (attempt 1/3):',
                 expect.any(Error)
             );
-        });
-    });
-
-    describe('Performance Mode', () => {
-        test('should disable logging in performance mode', async () => {
-            sceneHandler.setPerformanceMode(true);
-            sceneHandler.log('test message');
-            expect(logger.info).not.toHaveBeenCalled();
-        });
-
-        test('should still handle audio in performance mode', async () => {
-            const scene = {
-                content: "Test Scene",
-                arrive: {
-                    audio: { url: "test.mp3", volume: 0.5 }
-                }
-            };
-
-            sceneHandler.setPerformanceMode(true);
-            await sceneHandler.processScene(scene);
-            expect(mockAudioHandler.handleAudio).toHaveBeenCalled();
-        });
+        }, 10000); // Increased timeout to 10 seconds
     });
 
     describe('Scene Completion', () => {

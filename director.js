@@ -36,13 +36,24 @@ class Director {
 		return 1.0;
 	}
 
+	getDebugMode() {
+		const urlParams = new URLSearchParams(window.location.search);
+		const debug = urlParams.get('debug');
+		if (debug === '3') return 'debug';
+		if (debug === '2') return 'warn';
+		if (debug === '1') return 'info';
+		return 'error'; // Only show errors by default
+	}
+
 	async start() {
 		logger.info('Director started');
 		try {
 			const startIndex = this.getStartSceneIndex();
 			const speedMultiplier = this.getSpeedMultiplier();
-			// Set the speed multiplier in the scene handler
+			const debugLevel = this.getDebugMode();
+			// Set the speed multiplier and debug level
 			this.sceneHandler.setSpeedMultiplier(speedMultiplier);
+			logger.setLevel(debugLevel);
 			// Start scenes from the specified index, audio will be queued if not enabled
 			await this.sceneHandler.playScenes(this.scenes, startIndex);
 		} catch (error) {

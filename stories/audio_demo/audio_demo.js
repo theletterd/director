@@ -70,7 +70,7 @@ const scenes = [
             audio: {
                 trackId: "creepy_siren",
                 volume: 0.5,
-                fadeIn: 2500
+                fadeIn: 2000
             }
         },
         dwell: 2000,
@@ -79,7 +79,7 @@ const scenes = [
             duration: 1000,
             audio: {
                 trackId: "creepy_siren",
-                fadeOut: 7000
+                fadeOut: 3000
             },
             wait_for_audio: false
         }
@@ -95,7 +95,7 @@ const scenes = [
                 trackId: "rustling",
                 volume: 1.5,
                 offset: 3000,
-                fadeIn: 500,
+                fadeIn: 1000,
                 pan: 1.0 // happening on the right
             }
         },

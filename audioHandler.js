@@ -1,8 +1,6 @@
 class AudioHandler {
     constructor() {
-        if (typeof logger !== 'undefined') {
-            logger.info("[Audio] Initializing AudioHandler");
-        }
+        logger.info("[Audio] Initializing AudioHandler");
         this.audioContext = null;
         this.gainNode = null;
         this.tracks = new Map();
@@ -15,9 +13,7 @@ class AudioHandler {
             this.initializeAudioContext();
             // Don't setup user interaction yet - wait for checkAudioUsage
         } catch (error) {
-            if (typeof logger !== 'undefined') {
-                logger.error("[Audio] Error during initialization:", error);
-            }
+            logger.error("[Audio] Error during initialization:", error);
         }
     }
 
@@ -101,15 +97,14 @@ class AudioHandler {
 
     async loadAudio(url) {
         try {
-            logger.info(`[Audio] Loading audio from ${url}`);
+            logger.debug(`[Audio] Loading audio from ${url}`);
             const response = await fetch(url);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const arrayBuffer = await response.arrayBuffer();
-            logger.info(`[Audio] Audio downloaded, decoding...`);
             const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-            logger.info(`[Audio] Audio decoded successfully`);
+            logger.debug(`[Audio] Successfully loaded audio from ${url}`);
             return audioBuffer;
         } catch (error) {
             logger.error(`[Audio] Error loading audio from ${url}:`, error);
@@ -187,64 +182,32 @@ class AudioHandler {
 
             // Start playback from offset if specified
             const offset = options.offset || 0; // offset in seconds
-            logger.debug(`[Audio] Starting playback of track ${trackId} from offset ${offset}s`);
             source.start(0, offset);
-            
+
             // Store track info
             this.tracks.set(trackId, {
                 source,
                 gainNode,
                 pannerNode,
-                buffer: audioBuffer,
+                startTime: this.audioContext.currentTime,
+                duration: audioBuffer.duration,
                 options
             });
 
-            // Set up fade out if specified
-            if (options.fadeOut) {
-                const fadeOutTime = (audioBuffer.duration * 1000) - options.fadeOut;
-                logger.debug(`[Audio] Setting up fade out for track ${trackId} over ${options.fadeOut}ms at ${fadeOutTime}ms`);
-                setTimeout(() => {
-                    this.fadeOutTrack(trackId, options.fadeOut);
-                }, fadeOutTime);
+            // Set up timeout for non-looping tracks
+            if (!options.loop) {
+                const expectedDuration = options.loop ? Infinity : (audioBuffer.duration - offset) * 1000;
+                const timeoutDuration = options.loop ? 60000 : expectedDuration + 1000; // 1 minute for loops, duration + 1s for one-shots
+                
+                const timeout = setTimeout(() => {
+                    logger.debug(`[Audio] Track ${trackId} completed or timed out`);
+                    this.tracks.delete(trackId);
+                }, timeoutDuration);
             }
 
-            // Create a promise that resolves when the track ends
-            return new Promise((resolve, reject) => {
-                try {
-                    // Calculate expected duration
-                    const expectedDuration = options.loop ? Infinity : (audioBuffer.duration - offset) * 1000;
-                    const timeoutDuration = options.loop ? 60000 : expectedDuration + 1000; // 1 minute for loops, duration + 1s for one-shots
-
-                    // Set up timeout
-                    const timeout = setTimeout(() => {
-                        if (this.tracks.has(trackId)) {
-                            if (options.loop) {
-                                logger.debug(`[Audio] Loop track ${trackId} reached maximum play time`);
-                            } else {
-                                logger.warn(`[Audio] Track ${trackId} timeout - forcing stop`);
-                            }
-                            this.stopTrack(trackId);
-                            resolve();
-                        }
-                    }, timeoutDuration);
-
-                    // Set up ended handler
-                    source.onended = () => {
-                        clearTimeout(timeout);
-                        logger.debug(`[Audio] Track ${trackId} ended naturally`);
-                        if (!options.loop) {
-                            this.tracks.delete(trackId);
-                        }
-                        resolve();
-                    };
-                } catch (error) {
-                    logger.error(`[Audio] Error setting up track ${trackId} end handler:`, error);
-                    reject(error);
-                }
-            });
+            logger.info(`[Audio] Successfully started track ${trackId}`);
         } catch (error) {
             logger.error(`[Audio] Error playing track ${trackId}:`, error);
-            throw error;
         }
     }
 
@@ -263,37 +226,44 @@ class AudioHandler {
         }
     }
 
-    async fadeOutTrack(trackId, duration = 1000) {
+    async fadeOutTrack(trackId, duration_ms) {
         const track = this.tracks.get(trackId);
         if (!track) {
             logger.warn(`[Audio] Cannot fade out track ${trackId}: track not found`);
             return;
         }
 
-        logger.info(`[Audio] Starting fade out for track ${trackId} over ${duration}ms`);
         const { gainNode } = track;
+        const duration_seconds = duration_ms / 1000;
         
-        // Set up fade out
-        gainNode.gain.linearRampToValueAtTime(
-            gainNode.gain.value,
-            this.audioContext.currentTime
-        );
-        gainNode.gain.linearRampToValueAtTime(
-            0,
-            this.audioContext.currentTime + (duration / 1000)
-        );
-
+        logger.info(`[Audio] Starting fade out for track ${trackId} over ${duration_ms}ms`);
+        
+        // Get current gain value
+        const currentGain = gainNode.gain.value;
+        
+        // Set up the fade out using linearRampToValueAtTime
+        gainNode.gain.cancelScheduledValues(this.audioContext.currentTime);
+        gainNode.gain.setValueAtTime(currentGain, this.audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0, this.audioContext.currentTime + duration_seconds);
+        
         // Return a promise that resolves when the fade out completes
         return new Promise(resolve => {
             logger.info(`[Audio] Waiting for fade out to complete for track ${trackId}`);
             
-            // Add a small buffer to ensure the fade is complete
-            const buffer = 50; // 50ms buffer
-            setTimeout(() => {
-                logger.info(`[Audio] Fade out complete for track ${trackId}, stopping track`);
-                this.stopTrack(trackId);
-                resolve();
-            }, duration + buffer);
+            // Check gain value periodically until it reaches 0
+            const checkGain = () => {
+                if (gainNode.gain.value <= 0.001) { // Use a small threshold to account for floating point precision
+                    logger.info(`[Audio] Fade out complete for track ${trackId}, stopping track`);
+                    this.stopTrack(trackId);
+                    resolve();
+                } else {
+                    // Check again in 50ms
+                    setTimeout(checkGain, 50);
+                }
+            };
+            
+            // Start checking
+            checkGain();
         });
     }
 
@@ -319,7 +289,7 @@ class AudioHandler {
         }
 
         try {
-            logger.info(`[Audio] Stopping track ${trackId} (duration: ${track.buffer.duration}s, loop: ${track.options.loop || false})`);
+            logger.info(`[Audio] Stopping track ${trackId} (duration: ${track.duration}s, loop: ${track.options.loop || false})`);
             
             // First set gain to 0 to cut off sound immediately
             track.gainNode.gain.cancelScheduledValues(this.audioContext.currentTime);
@@ -426,7 +396,7 @@ class AudioHandler {
         return {
             isPlaying: track.source.playbackState === track.source.PLAYING_STATE,
             volume: track.gainNode.gain.value,
-            duration: track.buffer.duration,
+            duration: track.duration,
             currentTime: track.source.context.currentTime,
             isLooping: track.source.loop
         };

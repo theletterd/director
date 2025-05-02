@@ -1,45 +1,52 @@
 class Logger {
-    constructor(level = 'debug') {
+    constructor(level = 'error') {
+        this.level = level;
         this.levels = {
-            debug: 0,
-            info: 1,
-            warn: 2,
-            error: 3
+            'error': 0,
+            'warn': 1,
+            'info': 2,
+            'debug': 3
         };
-        this.currentLevel = this.levels[level];
     }
 
     setLevel(level) {
         if (this.levels[level] !== undefined) {
-            this.currentLevel = this.levels[level];
-            console.log(`[Logger] Set level to ${level}`);
+            this.level = level;
         }
     }
 
-    debug(message, ...args) {
-        if (this.currentLevel <= this.levels.debug) {
-            console.debug(`[DEBUG] ${message}`, ...args);
-        }
+    shouldLog(level) {
+        return this.levels[level] <= this.levels[this.level];
     }
 
-    info(message, ...args) {
-        if (this.currentLevel <= this.levels.info) {
-            console.info(`[INFO] ${message}`, ...args);
-        }
+    error(message, ...args) {
+        console.error(`[ERROR] ${message}`, ...args);
     }
 
     warn(message, ...args) {
-        if (this.currentLevel <= this.levels.warn) {
+        if (this.shouldLog('warn')) {
             console.warn(`[WARN] ${message}`, ...args);
         }
     }
 
-    error(message, ...args) {
-        if (this.currentLevel <= this.levels.error) {
-            console.error(`[ERROR] ${message}`, ...args);
+    info(message, ...args) {
+        if (this.shouldLog('info')) {
+            console.info(`[INFO] ${message}`, ...args);
+        }
+    }
+
+    debug(message, ...args) {
+        if (this.shouldLog('debug')) {
+            console.debug(`[DEBUG] ${message}`, ...args);
         }
     }
 }
 
-// Create a global logger instance with debug level
+// Create a global logger instance with default error level
+const logger = new Logger('error');
+
+// Export the logger
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = logger;
+} 
 window.logger = new Logger('debug'); 

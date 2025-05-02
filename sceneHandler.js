@@ -2,35 +2,24 @@ class SceneHandler {
     constructor(screen, audioHandler) {
         this.screen = screen;
         this.audioHandler = audioHandler;
-        this.audioCache = new Map();
         this.currentSceneIndex = 0;
         this.scenes = null;
         this.isPlaying = false;
         this.shouldLoop = true;
         this.onSceneCompleteCallbacks = new Map();
-        this.isPaused = false;
-        this.performanceMode = false;
         this.isRestarting = false;
         this.speedMultiplier = 1.0;
 
         // Set up logging
         this.logger = typeof logger !== 'undefined' ? logger : console;
 
-        if (typeof logger !== 'undefined' && !this.performanceMode) {
-            logger.info("SceneHandler initialized with screen:", screen);
-        }
+        logger.info("SceneHandler initialized with screen:", screen);
 
         // Set up audio enabled callback
         this.audioHandler.setAudioEnabledCallback(() => {
-            if (typeof logger !== 'undefined' && !this.performanceMode) {
-                logger.info("[Scene] Audio enabled, restarting scenes");
-            }
+            logger.info("[Scene] Audio enabled, restarting scenes");
             this.restartScenes();
         });
-    }
-
-    setPerformanceMode(enabled) {
-        this.performanceMode = enabled;
     }
 
     setSpeedMultiplier(multiplier) {
@@ -46,23 +35,12 @@ class SceneHandler {
         return Math.max(1, Math.floor(duration / this.speedMultiplier));
     }
 
-    log(message) {
-        if (!this.performanceMode) {
-            this.logger.info(message);
-        }
-    }
-
-    error(message) {
-        this.logger.error(message);
-    }
-
     onSceneComplete(sceneIndex, callback) {
         this.onSceneCompleteCallbacks.set(sceneIndex, callback);
     }
 
     async processScene(scene) {
         const sceneStartTime = performance.now();
-        let phaseStartTime;
 
         try {
             if (!scene) {
@@ -70,42 +48,35 @@ class SceneHandler {
                 return;
             }
 
-            if (!this.performanceMode) {
-                logger.debug(`[Scene ${this.currentSceneIndex}] Processing scene:`, JSON.stringify(scene, null, 2));
-            }
+            logger.debug(`[Scene ${this.currentSceneIndex}] Processing scene:`, JSON.stringify(scene, null, 2));
 
             // Handle directive if present
             if (scene.directive) {
-                phaseStartTime = performance.now();
                 await this.handleDirective(scene);
-                logger.info(`[Scene ${this.currentSceneIndex}] Directive took ${(performance.now() - phaseStartTime).toFixed(2)}ms`);
+                logger.info(`[Scene ${this.currentSceneIndex}] Directive took ${(performance.now() - sceneStartTime).toFixed(2)}ms`);
                 return;
             }
 
             // Create and add the scene element
-            phaseStartTime = performance.now();
             const sceneElement = this.createSceneElement(scene);
-            logger.info(`[Scene ${this.currentSceneIndex}] Element creation took ${(performance.now() - phaseStartTime).toFixed(2)}ms`);
+            logger.info(`[Scene ${this.currentSceneIndex}] Element creation took ${(performance.now() - sceneStartTime).toFixed(2)}ms`);
 
             // Handle arrival phase
             if (scene.arrive) {
-                phaseStartTime = performance.now();
                 await this.handleArrival(sceneElement, scene.arrive);
-                logger.info(`[Scene ${this.currentSceneIndex}] Arrival took ${(performance.now() - phaseStartTime).toFixed(2)}ms`);
+                logger.info(`[Scene ${this.currentSceneIndex}] Arrival took ${(performance.now() - sceneStartTime).toFixed(2)}ms`);
             }
 
             // Wait for dwell time
             if (scene.dwell) {
-                phaseStartTime = performance.now();
                 await this.sleep(scene.dwell);
-                logger.info(`[Scene ${this.currentSceneIndex}] Dwell took ${(performance.now() - phaseStartTime).toFixed(2)}ms`);
+                logger.info(`[Scene ${this.currentSceneIndex}] Dwell took ${(performance.now() - sceneStartTime).toFixed(2)}ms`);
             }
 
             // Handle departure phase
             if (scene.depart) {
-                phaseStartTime = performance.now();
                 await this.handleDeparture(sceneElement, scene.depart);
-                logger.info(`[Scene ${this.currentSceneIndex}] Departure took ${(performance.now() - phaseStartTime).toFixed(2)}ms`);
+                logger.info(`[Scene ${this.currentSceneIndex}] Departure took ${(performance.now() - sceneStartTime).toFixed(2)}ms`);
             }
 
             const totalDuration = performance.now() - sceneStartTime;
@@ -180,12 +151,12 @@ class SceneHandler {
                             // Start the fade and wait if requested
                             if (scene.wait_for_fade) {
                                 logger.debug(`Waiting for fade to complete`);
-                                await this.handleAudio(audio, "departure");
+                                await this.handleAudio(audio);
                                 // After fade is complete, ensure the track is stopped
                                 this.audioHandler.stopTrack(scene.trackId);
                             } else {
                                 // Start fade but don't wait
-                                this.handleAudio(audio, "departure").catch(error => {
+                                this.handleAudio(audio).catch(error => {
                                     logger.error("Error during fade_audio:", error);
                                 });
                             }
@@ -329,51 +300,41 @@ class SceneHandler {
         return element;
     }
 
-    async handleAudio(audio, phase) {
+    async handleAudio(audio) {
         if (!audio || !this.audioHandler) return;
-
-        const maxRetries = 2;
+        
+        const maxRetries = 3;
         let attempts = 0;
-        let lastError = null;
-
-        while (attempts <= maxRetries) {
+        
+        while (attempts < maxRetries) {
             try {
-                // Wait for audio to complete if it's a departure phase
-                if (phase === "departure") {
-                    logger.info(`[Audio] Waiting for audio to complete in departure phase`);
-                    await this.audioHandler.handleAudio(audio);
-                } else {
-                    // For other phases, start audio but don't wait
-                    this.audioHandler.handleAudio(audio).catch(error => {
-                        this.logger.error(`[Audio] Error in background audio: ${error.message}`);
-                    });
-                }
+                logger.debug(`[Audio] Attempting to handle audio (attempt ${attempts + 1}/${maxRetries})`);
+                await this.audioHandler.handleAudio(audio);
                 return;
             } catch (error) {
                 attempts++;
-                lastError = error;
                 
                 // Log with attempt count
-                this.logger.error(`[Audio] Error handling audio (attempt ${attempts}/${maxRetries + 1}):`, error);
+                logger.error(`[Audio] Error handling audio (attempt ${attempts}/${maxRetries}):`, error);
 
                 // Different handling based on error type
                 if (error instanceof TypeError || error.name === 'TypeError') {
                     // Configuration/setup errors - don't retry
-                    this.logger.error('[Audio] Audio configuration error - skipping retries');
+                    logger.error('[Audio] Audio configuration error - skipping retries');
                     break;
                 } else if (error.name === 'NotAllowedError') {
                     // User hasn't interacted with page yet
-                    this.logger.warn('[Audio] Audio not allowed yet - user interaction may be needed');
+                    logger.warn('[Audio] Audio not allowed yet - user interaction may be needed');
                     break;
                 } else if (error.name === 'NotSupportedError') {
                     // Audio format not supported
-                    this.logger.error('[Audio] Audio format not supported');
+                    logger.error('[Audio] Audio format not supported');
                     break;
                 }
 
                 // For other errors, retry after a delay if we haven't hit max retries
-                if (attempts <= maxRetries) {
-                    this.logger.info(`[Audio] Retrying in ${attempts * 1000}ms...`);
+                if (attempts < maxRetries) {
+                    logger.debug(`[Audio] Retrying in ${attempts * 1000}ms...`);
                     await new Promise(resolve => setTimeout(resolve, attempts * 1000));
                 }
             }
@@ -381,7 +342,7 @@ class SceneHandler {
 
         // If we get here, all retries failed or we broke early
         if (attempts > 0) {
-            this.logger.warn(`[Audio] Failed to play audio after ${attempts} attempt(s)`);
+            logger.warn(`[Audio] Failed to play audio after ${attempts} attempt(s)`);
         }
 
         // Always return, even if audio failed
@@ -394,11 +355,12 @@ class SceneHandler {
         }
 
         try {
-            // Handle audio first and wait for it to complete if specified
+            // Start audio asynchronously without awaiting
             if (arrival.audio) {
-                await this.handleAudio(arrival.audio, "arrival");
+                this.handleAudio(arrival.audio, "arrival").catch(error => {
+                    logger.error("[Arrive] Error during audio handling:", error);
+                });
             }
-
             // Start animation first if present
             if (arrival.animation) {
                 await this.handleAnimation(sceneElement, arrival.animation);
@@ -411,21 +373,23 @@ class SceneHandler {
                 // If no transition specified, just show the element
                 sceneElement.show().css('opacity', 1);
             }
+            
+
         } catch (error) {
             logger.error("[Arrive] Error during arrival:", error);
         }
     }
 
     async handleAnimation(element, animation) {
-        this.log("[Animation] Starting animation handler");
+        logger.info("[Animation] Starting animation handler");
 
         if (!animation.frames || !animation.frames.length) {
-            this.error("[Animation] Animation frames are missing or empty");
+            logger.error("[Animation] Animation frames are missing or empty");
             return;
         }
 
-        this.log(`[Animation] Starting animation with frames: ${animation.frames.length}`);
-        this.log(`[Animation] Frame length (ms): ${animation.frame_length_ms}`);
+        logger.info(`[Animation] Starting animation with frames: ${animation.frames.length}`);
+        logger.info(`[Animation] Frame length (ms): ${animation.frame_length_ms}`);
 
         let currentFrame = 0;
         const totalFrames = animation.frames.length;
@@ -443,7 +407,7 @@ class SceneHandler {
         const animate = async (frameIndex) => {
             try {
                 if (!element.is(':visible')) {
-                    this.log("[Animation] Stopped - element not visible");
+                    logger.info("[Animation] Stopped - element not visible");
                     return;
                 }
                 
@@ -459,11 +423,11 @@ class SceneHandler {
                 await new Promise(resolve => setTimeout(resolve, frameLength));
                 animate(nextFrame);
             } catch (error) {
-                this.error("[Animation] Error: " + error.toString());
+                logger.error("[Animation] Error: " + error.toString());
             }
         };
 
-        this.log("[Animation] Starting animation loop");
+        logger.info("[Animation] Starting animation loop");
         animate(currentFrame);
     }
 
@@ -476,7 +440,7 @@ class SceneHandler {
         const departureComplete = new Promise(async (resolve) => {
             // Start both audio and visual transitions simultaneously
             const audioPromise = departure.audio ? 
-                this.handleAudio(departure.audio, "departure") : 
+                this.handleAudio(departure.audio) : 
                 Promise.resolve();
 
             const visualPromise = departure.transition ? 
@@ -511,32 +475,17 @@ class SceneHandler {
         logger.info(`[Depart] Departure complete`);
     }
 
-    async handleRemoval(sceneElement, departure) {
-        switch (departure.transition) {
-            case "hide":
-                sceneElement.remove();
-                break;
-            case "fade":
-                await this.fadeOutAndRemove(sceneElement, departure.duration);
-                break;
-        }
-    }
-
     async handleTransition(sceneElement, config) {
         if (!sceneElement || !config) {
             logger.warn("[Transition] Called with invalid parameters:", { sceneElement, config });
             return;
         }
 
-        if (!this.performanceMode) {
-            logger.debug(`[Transition] Handling transition: ${config.transition}`);
-        }
+        logger.debug(`[Transition] Handling transition: ${config.transition}`);
         
         switch (config.transition) {
             case "fade":
-                if (!this.performanceMode) {
-                    logger.debug(`[Transition] Fading over ${config.duration || 1000}ms`);
-                }
+                logger.debug(`[Transition] Fading over ${config.duration || 1000}ms`);
                 return new Promise(resolve => {
                     const startTime = performance.now();
                     const duration = this.getAdjustedDuration(config.duration || 1000);
@@ -572,15 +521,11 @@ class SceneHandler {
                     sceneElement.on('transitionend', onTransitionEnd);
                 });
             case "show":
-                if (!this.performanceMode) {
-                    logger.debug("[Transition] Showing immediately");
-                }
+                logger.debug("[Transition] Showing immediately");
                 sceneElement.show().css('opacity', 1);
                 return Promise.resolve();
             case "hide":
-                if (!this.performanceMode) {
-                    logger.debug("[Transition] Hiding immediately");
-                }
+                logger.debug("[Transition] Hiding immediately");
                 if (config.type === "out" && config.remove === true) {
                     sceneElement.remove();
                 } else {
@@ -589,9 +534,7 @@ class SceneHandler {
                 return Promise.resolve();
             case "type":
                 if (config.type !== "out") {
-                    if (!this.performanceMode) {
-                        logger.debug(`[Transition] Typing with ${config.ms_per_char || 50}ms per character`);
-                    }
+                    logger.debug(`[Transition] Typing with ${config.ms_per_char || 50}ms per character`);
                     // Get the text from the scene element
                     const text = sceneElement.text();
                     if (!text) {
@@ -604,9 +547,7 @@ class SceneHandler {
                     return Promise.resolve();
                 }
             case "keep":
-                if (!this.performanceMode) {
-                    logger.debug("[Transition] Keeping element as is");
-                }
+                logger.debug("[Transition] Keeping element as is");
                 return Promise.resolve();
             default:
                 logger.warn(`[Transition] Unknown transition: ${config.transition}`);
@@ -623,15 +564,6 @@ class SceneHandler {
         return new Promise(resolve => {
             element.fadeOut(duration, () => {
                 element.remove();
-                resolve();
-            });
-        });
-    }
-
-    async fadeOutAndClear(element, duration) {
-        return new Promise(resolve => {
-            element.fadeOut(duration, () => {
-                element.show().empty();
                 resolve();
             });
         });
@@ -736,9 +668,7 @@ class SceneHandler {
         }
 
         const startTime = Date.now();
-        if (!this.performanceMode) {
-            logger.debug(`Starting to type text: "${text}" with ${msPerChar}ms per character`);
-        }
+        logger.debug(`Starting to type text: "${text}" with ${msPerChar}ms per character`);
         element.show();
         
         // Convert text to string and split into characters
@@ -765,9 +695,7 @@ class SceneHandler {
                 element.append(cursor);
             }
             
-            if (!this.performanceMode) {
-                logger.debug(`Typed character: ${character}`);
-            }
+            logger.debug(`Typed character: ${character}`);
             await this.sleep(msPerChar);
         }
         
@@ -776,10 +704,8 @@ class SceneHandler {
             cursor.remove();
         }
         
-        if (!this.performanceMode) {
-            const endTime = Date.now();
-            logger.debug(`Finished typing text in ${endTime - startTime}ms`);
-        }
+        const endTime = Date.now();
+        logger.debug(`Finished typing text in ${endTime - startTime}ms`);
     }
 
     async playScene(scene) {
@@ -806,22 +732,9 @@ class SceneHandler {
             if (scene.directive) {
                 await this.handleDirective(scene);
             }
-
-            // Ensure all animations and transitions are complete before moving to next scene
-            await this.waitForAnimations();
         } catch (error) {
             logger.error(`Error in playScene: ${error.message}`);
             throw error;
-        }
-    }
-
-    async waitForAnimations() {
-        // Wait for any ongoing animations to complete
-        const animations = this.screen.find('.animating');
-        if (animations.length > 0) {
-            await new Promise(resolve => {
-                animations.on('animationend', resolve, { once: true });
-            });
         }
     }
 }
