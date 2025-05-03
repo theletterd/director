@@ -1,0 +1,22 @@
+body {
+    background-color: #000;
+    color: #fff;
+    font-family: monospace;
+    margin: 0;
+    padding: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+#screen {
+    max-width: 800px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    background-color: #000;
+}
+
+.scene {
+    margin-bottom: 1em;
+} 
