@@ -1,101 +1,44 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Director Stories</title>
+    <link href="https://fonts.googleapis.com/css2?family=Amatic+SC:wght@700&family=Quicksand:wght@300&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="title-container">
+            <h1 class="main-title">Director</h1>
+            <div class="subtitle">javascript storytelling</div>
+        </div>
 
-{% block title %}Director Stories{% endblock %}
+        <ul class="stories-list">
+            {% for story in stories %}
+            <li class="story-item">
+                <a href="/stories/{{ story.name }}">{{ story.title }}</a>
+                <div class="story-description">{{ story.description }}</div>
+            </li>
+            {% endfor %}
+        </ul>
 
-{% block extra_styles %}
-<style>
-    .stories-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    
-    .story-item {
-        margin-bottom: 20px;
-        padding: 15px;
-        background-color: rgba(255, 255, 255, 0.1);
-        border-radius: 5px;
-        transition: background-color 0.3s ease;
-    }
-    
-    .story-item:hover {
-        background-color: rgba(255, 255, 255, 0.2);
-    }
-    
-    .story-item a {
-        color: #000;
-        text-decoration: none;
-        font-size: 1.2em;
-        display: block;
-        margin-bottom: 5px;
-    }
-    
-    .story-description {
-        color: #333;
-        font-size: 0.9em;
-        margin-top: 5px;
-    }
-</style>
-{% endblock %}
-
-{% block extra_scripts %}
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const screen = document.getElementById('screen');
-        const stories = [
-            {
-                title: 'Demo',
-                url: '/stories/demo',
-                description: 'A demonstration of basic features'
-            },
-            {
-                title: 'Dream',
-                url: '/stories/dream',
-                description: 'A dream sequence story'
-            },
-            {
-                title: 'Story 2',
-                url: '/stories/story2',
-                description: 'Another story example'
-            },
-            {
-                title: 'Audio Demo',
-                url: '/stories/audio_demo',
-                description: 'Demonstration of audio features'
-            },
-            {
-                title: 'Animation Test',
-                url: '/stories/animation_test',
-                description: 'Testing animation capabilities'
-            },
-            {
-                title: 'Ziggy',
-                url: '/stories/ziggy',
-                description: 'A story about Ziggy'
-            }
-        ];
-
-        const storiesList = document.createElement('ul');
-        storiesList.className = 'stories-list';
-
-        stories.forEach(story => {
-            const item = document.createElement('li');
-            item.className = 'story-item';
-            
-            const link = document.createElement('a');
-            link.href = story.url;
-            link.textContent = story.title;
-            
-            const description = document.createElement('div');
-            description.className = 'story-description';
-            description.textContent = story.description;
-            
-            item.appendChild(link);
-            item.appendChild(description);
-            storiesList.appendChild(item);
-        });
-
-        screen.appendChild(storiesList);
-    });
-</script>
-{% endblock %} 
+        <footer class="github-footer">
+            <div class="footer-text">
+                <a href="https://github.com/theletterd/director" target="_blank" rel="noopener noreferrer">
+                    <svg height="16" aria-hidden="true" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="github-icon">
+                        <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path>
+                    </svg>
+                    <span>view on GitHub</span>
+                </a>
+                <span> - </span>
+                <span>A creation by </span>
+                <a href="https://github.com/theletterd" target="_blank" rel="noopener noreferrer">
+                    <img src="https://github.com/theletterd.png" alt="theletterd" class="author-avatar">
+                    <span>theletterd</span>
+                </a>
+            </div>
+        </footer>
+    </div>
+</body>
+</html> 

@@ -34,9 +34,43 @@ STORY_CONFIG = {
     }
 }
 
+def get_stories():
+    return [
+        {
+            'name': 'demo',
+            'title': 'Demo',
+            'description': 'A demonstration of all the basic features'
+        },
+        {
+            'name': 'dream',
+            'title': 'Dream',
+            'description': 'A dream sequence story'
+        },
+        {
+            'name': 'story2',
+            'title': 'Story 2',
+            'description': 'Another story example'
+        },
+        {
+            'name': 'audio_demo',
+            'title': 'Audio Demo',
+            'description': 'Demonstration of audio features'
+        },
+        {
+            'name': 'animation_test',
+            'title': 'Animation Test',
+            'description': 'Testing animation capabilities'
+        },
+        {
+            'name': 'ziggy',
+            'title': 'Ziggy',
+            'description': 'A story about Ziggy'
+        }
+    ]
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', stories=get_stories())
 
 @app.route('/stories/<path:path>')
 def serve_story(path):
