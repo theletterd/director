@@ -302,7 +302,7 @@ The application will be available at `http://localhost:5000`
 
 ### Production Mode (with Gunicorn)
 ```bash
-gunicorn --bind 0.0.0.0:5000 app:app
+gunicorn -c gunicorn.conf.py app:app
 ```
 
 Or using the Makefile:

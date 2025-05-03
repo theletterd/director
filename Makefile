@@ -16,7 +16,7 @@ run:
 
 # Run with Gunicorn
 run-gunicorn:
-	. env/bin/activate && gunicorn --bind 0.0.0.0:5000 app:app
+	. env/bin/activate && gunicorn -c gunicorn.conf.py app:app
 
 # Clean up
 clean:
