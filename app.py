@@ -44,5 +44,13 @@ def serve_story(path):
 def serve_story_js(story_name, filename):
     return send_from_directory('static/js/stories', filename)
 
+@app.route('/favicon.ico')
+@app.route('/favicon.png')
+def favicon():
+    response = send_from_directory('static', 'favicon.png')
+    response.headers['Cache-Control'] = 'public, max-age=31536000'  # Cache for 1 year
+    response.headers['Content-Type'] = 'image/png'
+    return response
+
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG']) 
