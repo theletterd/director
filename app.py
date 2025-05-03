@@ -35,9 +35,9 @@ def serve_story(path):
         story_name=story_name,
         story_title=config['title'],
         story_js=config['js'],
+        story_css=config.get('css'),
         audio_library=config.get('needs_audio', False),
-        screen_class=config.get('screen_class'),
-        story_css=story_name if config.get('needs_css', False) else None
+        screen_class=config.get('screen_class')
     )
 
 @app.route('/stories/js/<story_name>/<filename>')

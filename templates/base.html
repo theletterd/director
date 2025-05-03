@@ -6,7 +6,7 @@
     <title>{% block title %}Director{% endblock %}</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
     {% if story_css %}
-    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/stories/' + story_css + '.css') }}">
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/stories/' + story_css) }}">
     {% endif %}
     {% block extra_styles %}{% endblock %}
 </head>

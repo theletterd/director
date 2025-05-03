@@ -17,8 +17,10 @@
         <ul class="stories-list">
             {% for story in stories %}
             <li class="story-item">
-                <a href="/stories/{{ story.name }}">{{ story.title }}</a>
-                <div class="story-description">{{ story.description }}</div>
+                <a href="/stories/{{ story.name }}" class="story-link">
+                    <div class="story-title">{{ story.title }}</div>
+                    <div class="story-description">{{ story.description }}</div>
+                </a>
             </li>
             {% endfor %}
         </ul>

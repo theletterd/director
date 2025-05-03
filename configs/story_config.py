@@ -1,14 +1,14 @@
 # Story configurations
 STORY_CONFIG = {
-    'dream': {
+     'demo': {
+        'title': 'Demo',
+        'js': 'demo.js',
+        'description': 'A demonstration of all the basic features'
+    },
+   'dream': {
         'title': 'Dream Story',
         'js': 'scenes.js',
         'description': 'A dream sequence story'
-    },
-    'demo': {
-        'title': 'Director Demo',
-        'js': 'demo.js',
-        'description': 'A demonstration of all the basic features'
     },
     'story2': {
         'title': 'Story 2',
@@ -16,7 +16,7 @@ STORY_CONFIG = {
         'description': 'Another story example'
     },
     'audio_demo': {
-        'title': 'Director Audio Demo',
+        'title': 'Audio Demo',
         'js': 'audio_demo.js',
         'description': 'Demonstration of audio features',
         'needs_audio': True
@@ -29,8 +29,8 @@ STORY_CONFIG = {
     'ziggy': {
         'title': "Ziggy's Story",
         'js': 'ziggy.js',
+        'css': 'ziggy.css',
         'description': 'A story about Ziggy',
-        'screen_class': 'ziggy-story',
-        'needs_css': True
+        'screen_class': 'ziggy-story'
     }
 } 
