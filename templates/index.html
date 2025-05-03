@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Director - Scene Director for Animations and Audio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .stories-list {
+            list-style: none;
+            padding: 0;
+        }
+        .story-item {
+            background: white;
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .story-item a {
+            color: #0066cc;
+            text-decoration: none;
+            font-size: 1.2em;
+        }
+        .story-item a:hover {
+            text-decoration: underline;
+        }
+        .story-description {
+            color: #666;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Director Stories</h1>
+    <ul class="stories-list">
+        <li class="story-item">
+            <a href="/stories/demo/index.html">Demo</a>
+            <div class="story-description">A demonstration of basic features</div>
+        </li>
+        <li class="story-item">
+            <a href="/stories/dream/index.html">Dream</a>
+            <div class="story-description">A dream sequence story</div>
+        </li>
+        <li class="story-item">
+            <a href="/stories/story2/index.html">Story 2</a>
+            <div class="story-description">Another story example</div>
+        </li>
+        <li class="story-item">
+            <a href="/stories/audio_demo/index.html">Audio Demo</a>
+            <div class="story-description">Demonstration of audio features</div>
+        </li>
+        <li class="story-item">
+            <a href="/stories/animation_test/index.html">Animation Test</a>
+            <div class="story-description">Testing animation capabilities</div>
+        </li>
+        <li class="story-item">
+            <a href="/stories/ziggy/index.html">Ziggy</a>
+            <div class="story-description">A story about Ziggy</div>
+        </li>
+    </ul>
+</body>
+</html> 

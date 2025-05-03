@@ -523,7 +523,6 @@ var scenes = [
 			remove: false,
 		}
 	},
-	{directive: "clear"},
 	{
 		content: "         ...slightly more interesting.",
 		arrive: {

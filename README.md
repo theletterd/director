@@ -278,3 +278,50 @@ Tests cover:
 ## License
 
 MIT License
+
+## Setup
+
+1. Install Python dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+2. Install Node.js dependencies (for development):
+```bash
+npm install
+```
+
+## Running the Application
+
+### Development Mode
+```bash
+python app.py
+```
+
+The application will be available at `http://localhost:5000`
+
+### Testing
+```bash
+npm test
+```
+
+## Project Structure
+
+- `app.py` - Main Flask application
+- `templates/` - HTML templates
+- `static/` - Static assets
+  - `js/` - JavaScript files
+  - `css/` - Stylesheets
+  - `sound_effects/` - Audio files
+- `tests/` - Test files
+- `stories/` - Story content
+
+## Development
+
+The frontend JavaScript code is organized into several modules:
+- `director.js` - Main application logic
+- `audioHandler.js` - Audio management
+- `sceneHandler.js` - Scene management
+- `animations.js` - Animation effects
+- `logger.js` - Logging utilities
+- `audio_library.js` - Audio library configuration
