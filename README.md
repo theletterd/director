@@ -300,28 +300,17 @@ python app.py
 
 The application will be available at `http://localhost:5000`
 
-### Testing
+### Production Mode (with Gunicorn)
 ```bash
-npm test
+gunicorn --bind 0.0.0.0:5000 app:app
 ```
 
-## Project Structure
+Or using the Makefile:
+```bash
+make run-gunicorn
+```
 
-- `app.py` - Main Flask application
-- `templates/` - HTML templates
-- `static/` - Static assets
-  - `js/` - JavaScript files
-  - `css/` - Stylesheets
-  - `sound_effects/` - Audio files
-- `tests/` - Test files
-- `stories/` - Story content
+The application will be available at `http://localhost:5000`
 
-## Development
-
-The frontend JavaScript code is organized into several modules:
-- `director.js` - Main application logic
-- `audioHandler.js` - Audio management
-- `sceneHandler.js` - Scene management
-- `animations.js` - Animation effects
-- `logger.js` - Logging utilities
-- `audio_library.js` - Audio library configuration
+### Testing
+```

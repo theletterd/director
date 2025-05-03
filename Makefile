@@ -1,4 +1,4 @@
-.PHONY: setup setup-python setup-npm run clean test test-python test-npm deploy help
+.PHONY: setup setup-python setup-npm run run-gunicorn clean test test-python test-npm deploy help
 
 # Development setup
 setup: setup-python setup-npm
@@ -13,6 +13,10 @@ setup-npm:
 # Run the Flask application
 run:
 	. env/bin/activate && python app.py
+
+# Run with Gunicorn
+run-gunicorn:
+	. env/bin/activate && gunicorn --bind 0.0.0.0:5000 app:app
 
 # Clean up
 clean:
@@ -47,7 +51,8 @@ help:
 	@echo "  make setup         - Set up both Python and Node.js environments"
 	@echo "  make setup-python  - Set up Python environment"
 	@echo "  make setup-npm     - Set up Node.js environment"
-	@echo "  make run          - Run the Flask application"
+	@echo "  make run          - Run the Flask application in development mode"
+	@echo "  make run-gunicorn - Run the Flask application with Gunicorn"
 	@echo "  make clean        - Clean up Python cache files, node_modules, and other temporary files"
 	@echo "  make test         - Run all tests (Python and Node.js)"
 	@echo "  make test-python  - Run Python tests"
