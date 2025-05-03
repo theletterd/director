@@ -1,5 +1,5 @@
-const SceneHandler = require('../static/js/sceneHandler.js');
-const AudioHandler = require('../static/js/audioHandler.js');
+const SceneHandler = require('../static/js/assets/sceneHandler.js');
+const AudioHandler = require('../static/js/assets/audioHandler.js');
 
 describe('SceneHandler', () => {
     let sceneHandler;

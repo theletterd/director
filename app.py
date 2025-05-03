@@ -49,7 +49,7 @@ def serve_story_js(story_name, filename):
 def favicon():
     response = send_from_directory('static', 'favicon.png')
     response.headers['Cache-Control'] = 'public, max-age=31536000'  # Cache for 1 year
-    response.headers['Content-Type'] = 'image/png'
+    response.headers['Content-Type'] = 'image/x-icon'
     return response
 
 if __name__ == '__main__':
