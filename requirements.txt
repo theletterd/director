@@ -5,4 +5,5 @@ click==8.1.7
 itsdangerous==2.1.2
 MarkupSafe==2.1.5
 pytest==8.0.0
-pytest-cov==4.1.0 
+pytest-cov==4.1.0
+uWSGI==2.0.24 
