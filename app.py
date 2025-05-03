@@ -1,71 +1,19 @@
 from flask import Flask, render_template, send_from_directory
 import os
+from configs.config import FLASK_CONFIG
+from configs.story_config import STORY_CONFIG
 
 app = Flask(__name__)
-
-# Story configuration
-STORY_CONFIG = {
-    'dream': {
-        'title': 'Dream Story',
-        'js': 'scenes.js'
-    },
-    'demo': {
-        'title': 'Director Demo',
-        'js': 'demo.js'
-    },
-    'story2': {
-        'title': 'Story 2',
-        'js': 'story2.js'
-    },
-    'audio_demo': {
-        'title': 'Director Audio Demo',
-        'js': 'audio_demo.js',
-        'needs_audio': True
-    },
-    'animation_test': {
-        'title': 'Animation Test',
-        'js': 'animation_test.js'
-    },
-    'ziggy': {
-        'title': "Ziggy's Story",
-        'js': 'ziggy.js',
-        'screen_class': 'ziggy-story',
-        'needs_css': True
-    }
-}
+app.config.update(FLASK_CONFIG)
 
 def get_stories():
     return [
         {
-            'name': 'demo',
-            'title': 'Demo',
-            'description': 'A demonstration of all the basic features'
-        },
-        {
-            'name': 'dream',
-            'title': 'Dream',
-            'description': 'A dream sequence story'
-        },
-        {
-            'name': 'story2',
-            'title': 'Story 2',
-            'description': 'Another story example'
-        },
-        {
-            'name': 'audio_demo',
-            'title': 'Audio Demo',
-            'description': 'Demonstration of audio features'
-        },
-        {
-            'name': 'animation_test',
-            'title': 'Animation Test',
-            'description': 'Testing animation capabilities'
-        },
-        {
-            'name': 'ziggy',
-            'title': 'Ziggy',
-            'description': 'A story about Ziggy'
+            'name': name,
+            'title': config['title'],
+            'description': config['description']
         }
+        for name, config in STORY_CONFIG.items()
     ]
 
 @app.route('/')
@@ -94,7 +42,7 @@ def serve_story(path):
 
 @app.route('/stories/js/<story_name>/<filename>')
 def serve_story_js(story_name, filename):
-    return send_from_directory('stories', f'{story_name}/{filename}')
+    return send_from_directory('static/js/stories', filename)
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=app.config['DEBUG']) 

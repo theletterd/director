@@ -4,13 +4,13 @@
 
 {% block extra_scripts %}
 <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-<script src="{{ url_for('static', filename='js/logger.js') }}"></script>
-<script src="{{ url_for('static', filename='js/audioHandler.js') }}"></script>
-<script src="{{ url_for('static', filename='js/sceneHandler.js') }}"></script>
-<script src="{{ url_for('static', filename='js/animations.js') }}"></script>
+<script src="{{ url_for('static', filename='js/assets/logger.js') }}"></script>
+<script src="{{ url_for('static', filename='js/assets/audioHandler.js') }}"></script>
+<script src="{{ url_for('static', filename='js/assets/sceneHandler.js') }}"></script>
+<script src="{{ url_for('static', filename='js/assets/animations.js') }}"></script>
 {% if audio_library %}
-<script src="{{ url_for('static', filename='js/audio_library.js') }}"></script>
+<script src="{{ url_for('static', filename='js/assets/audio_library.js') }}"></script>
 {% endif %}
 <script src="{{ url_for('serve_story_js', story_name=story_name, filename=story_js) }}"></script>
-<script src="{{ url_for('static', filename='js/director.js') }}"></script>
+<script src="{{ url_for('static', filename='js/assets/director.js') }}"></script>
 {% endblock %} 
