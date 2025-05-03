@@ -1,76 +1,101 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Director - Scene Director for Animations and Audio</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .stories-list {
-            list-style: none;
-            padding: 0;
-        }
-        .story-item {
-            background: white;
-            margin-bottom: 15px;
-            padding: 15px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .story-item a {
-            color: #0066cc;
-            text-decoration: none;
-            font-size: 1.2em;
-        }
-        .story-item a:hover {
-            text-decoration: underline;
-        }
-        .story-description {
-            color: #666;
-            margin-top: 5px;
-            font-size: 0.9em;
-        }
-    </style>
-</head>
-<body>
-    <h1>Director Stories</h1>
-    <ul class="stories-list">
-        <li class="story-item">
-            <a href="/stories/demo">Demo</a>
-            <div class="story-description">A demonstration of basic features</div>
-        </li>
-        <li class="story-item">
-            <a href="/stories/dream">Dream</a>
-            <div class="story-description">A dream sequence story</div>
-        </li>
-        <li class="story-item">
-            <a href="/stories/story2">Story 2</a>
-            <div class="story-description">Another story example</div>
-        </li>
-        <li class="story-item">
-            <a href="/stories/audio_demo">Audio Demo</a>
-            <div class="story-description">Demonstration of audio features</div>
-        </li>
-        <li class="story-item">
-            <a href="/stories/animation_test">Animation Test</a>
-            <div class="story-description">Testing animation capabilities</div>
-        </li>
-        <li class="story-item">
-            <a href="/stories/ziggy">Ziggy</a>
-            <div class="story-description">A story about Ziggy</div>
-        </li>
-    </ul>
-</body>
-</html> 
+{% extends "base.html" %}
+
+{% block title %}Director Stories{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .stories-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    
+    .story-item {
+        margin-bottom: 20px;
+        padding: 15px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 5px;
+        transition: background-color 0.3s ease;
+    }
+    
+    .story-item:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    .story-item a {
+        color: #000;
+        text-decoration: none;
+        font-size: 1.2em;
+        display: block;
+        margin-bottom: 5px;
+    }
+    
+    .story-description {
+        color: #333;
+        font-size: 0.9em;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const screen = document.getElementById('screen');
+        const stories = [
+            {
+                title: 'Demo',
+                url: '/stories/demo',
+                description: 'A demonstration of basic features'
+            },
+            {
+                title: 'Dream',
+                url: '/stories/dream',
+                description: 'A dream sequence story'
+            },
+            {
+                title: 'Story 2',
+                url: '/stories/story2',
+                description: 'Another story example'
+            },
+            {
+                title: 'Audio Demo',
+                url: '/stories/audio_demo',
+                description: 'Demonstration of audio features'
+            },
+            {
+                title: 'Animation Test',
+                url: '/stories/animation_test',
+                description: 'Testing animation capabilities'
+            },
+            {
+                title: 'Ziggy',
+                url: '/stories/ziggy',
+                description: 'A story about Ziggy'
+            }
+        ];
+
+        const storiesList = document.createElement('ul');
+        storiesList.className = 'stories-list';
+
+        stories.forEach(story => {
+            const item = document.createElement('li');
+            item.className = 'story-item';
+            
+            const link = document.createElement('a');
+            link.href = story.url;
+            link.textContent = story.title;
+            
+            const description = document.createElement('div');
+            description.className = 'story-description';
+            description.textContent = story.description;
+            
+            item.appendChild(link);
+            item.appendChild(description);
+            storiesList.appendChild(item);
+        });
+
+        screen.appendChild(storiesList);
+    });
+</script>
+{% endblock %} 

@@ -8,19 +8,10 @@
     {% if story_css %}
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/stories/' + story_css + '.css') }}">
     {% endif %}
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-    <script src="{{ url_for('static', filename='js/logger.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/audioHandler.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/sceneHandler.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/animations.js') }}"></script>
-    {% if audio_library %}
-    <script src="{{ url_for('static', filename='js/audio_library.js') }}"></script>
-    {% endif %}
-    {% block extra_scripts %}{% endblock %}
-    <script src="{{ url_for('static', filename='js/director.js') }}"></script>
     {% block extra_styles %}{% endblock %}
 </head>
 <body>
     <div id="screen" {% if screen_class %}class="{{ screen_class }}"{% endif %}></div>
+    {% block extra_scripts %}{% endblock %}
 </body>
 </html> 
