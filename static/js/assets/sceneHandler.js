@@ -790,28 +790,33 @@ class SceneHandler {
                 return new Promise(resolve => {
                     const duration = 2000; // 2 second transition
                     
+                    // Handle both jQuery and DOM elements
+                    const $element = element.jquery ? element : $(element);
+                    
                     // First transition to opacity 0
-                    element.css({
+                    $element.css({
                         'transition': `opacity ${duration}ms linear`,
                         'opacity': 0
                     });
                     
                     // Force a reflow
-                    element[0].offsetHeight;
+                    if ($element[0]) {
+                        $element[0].offsetHeight;
+                    }
                     
                     // Wait for transition to complete
                     const onTransitionEnd = () => {
-                        element.off('transitionend', onTransitionEnd);
+                        $element.off('transitionend', onTransitionEnd);
                         
-                        // Remove any elements
-                        if (element === this.screen) {
+                        // Remove any elements - compare the underlying DOM elements
+                        if ($element[0] === this.screen[0]) {
                             this.screen.empty();
-                        } else if (element === this.theatre) {
+                        } else if ($element[0] === this.theatre[0]) {
                             this.theatre.find('.scene').remove();
                         }
                         
                         // Clear all styles to inherit from CSS
-                        element.css({
+                        $element.css({
                             'background-color': '',
                             'color': '',
                             'opacity': '',
@@ -822,7 +827,7 @@ class SceneHandler {
                         resolve();
                     };
                     
-                    element.on('transitionend', onTransitionEnd);
+                    $element.on('transitionend', onTransitionEnd);
                 });
             };
 
@@ -837,14 +842,14 @@ class SceneHandler {
                 if (this.audioHandler.isAudioAllowed) {
                     // Clear any pending audio operations
                     this.audioHandler.stopAllTracks();
-                    setTimeout(() => this.playScenes(this.scenes, startIndex), 0);
+                    await this.playScenes(this.scenes, startIndex);
                 } else {
                     // If audio is not allowed, queue the first scene's audio
                     const firstScene = this.scenes[0];
                     if (firstScene && firstScene.arrive && firstScene.arrive.audio) {
                         this.audioHandler.handleAudio(firstScene.arrive.audio);
                     }
-                    setTimeout(() => this.playScenes(this.scenes, startIndex), 0);
+                    await this.playScenes(this.scenes, startIndex);
                 }
             }
         } finally {
@@ -971,4 +976,4 @@ class SceneHandler {
 // Export the SceneHandler class in a way that works in both browser and Node.js
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = SceneHandler;
-} 
+}

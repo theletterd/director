@@ -52,7 +52,24 @@ describe('SceneHandler', () => {
         mockScreen = {
             append: jest.fn().mockReturnThis(),
             empty: jest.fn().mockReturnThis(),
-            find: jest.fn().mockReturnValue(mockSceneElement)
+            find: jest.fn().mockReturnValue(mockSceneElement),
+            jquery: true,
+            0: {
+                offsetHeight: 100,
+                style: {
+                    transition: '',
+                    opacity: 1
+                }
+            },
+            css: jest.fn().mockReturnThis(),
+            on: jest.fn((event, handler) => {
+                if (event === 'transitionend') {
+                    // Simulate transition end after a short delay
+                    setTimeout(handler, 100);
+                }
+                return mockScreen;
+            }),
+            off: jest.fn().mockReturnThis()
         };
 
         mockAudioHandler = {
