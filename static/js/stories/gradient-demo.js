@@ -1,6 +1,6 @@
 var scenes = [
     {
-        content: "Hello! Now let's play with colours!",
+        content: "Now let's play with colours!",
         arrive: {
             transition: "type",
             ms_per_char: 50
@@ -8,7 +8,8 @@ var scenes = [
         dwell: 2000,
         depart: {
             transition: "fade",
-            duration: 1000
+            duration: 1000,
+            remove: true
         }
     },
     {

@@ -5,10 +5,19 @@ class SceneHandler {
         this.currentSceneIndex = 0;
         this.scenes = null;
         this.isPlaying = false;
-        this.shouldLoop = true;
         this.onSceneCompleteCallbacks = new Map();
         this.isRestarting = false;
         this.speedMultiplier = 1.0;
+        this.initialColors = {
+            screen: {
+                background: this.screen.css('background-color'),
+                color: this.screen.css('color')
+            },
+            body: {
+                background: $('body').css('background-color'),
+                color: $('body').css('color')
+            }
+        };
 
         // Set up logging
         this.logger = typeof logger !== 'undefined' ? logger : console;
@@ -215,7 +224,7 @@ class SceneHandler {
             targets = [$('body')];
             // Make screen background transparent
             this.screen.css('background', 'transparent');
-        } else if (scene.target === 'body') {
+        } else if (scene.target === 'background') {
             targets = [$('body')];
         } else if (scene.target === 'screen') {
             targets = [this.screen];
@@ -740,10 +749,11 @@ class SceneHandler {
         while (this.isPlaying) {
             // If we've reached the end of the scenes
             if (this.currentSceneIndex >= scenes.length) {
-                if (this.shouldLoop && !this.isRestarting) {
+                if (!this.isRestarting) {
                     logger.info("[Scene] Reached end of scenes, restarting");
-                    this.currentSceneIndex = 0; // Reset to start
-                    continue; // Continue the loop with the first scene
+                    await this.restartScenes(0); // Start from the beginning
+                    this.currentSceneIndex = 0; // Reset index for the new loop
+                    continue; // Continue with the new loop
                 } else {
                     logger.info("[Scene] Finished playing all scenes");
                     break; // Exit the loop if we shouldn't loop
@@ -774,7 +784,7 @@ class SceneHandler {
         }
     }
 
-    restartScenes() {
+    async restartScenes(startIndex = this.currentSceneIndex) {
         if (this.isRestarting) {
             logger.warn("[Scene] Already restarting scenes, ignoring duplicate restart");
             return;
@@ -783,22 +793,84 @@ class SceneHandler {
         try {
             this.isRestarting = true;
             logger.info("[Scene] Restarting scenes");
-            const currentIndex = this.currentSceneIndex; // Store current index
             this.stop(); // Stop current playback and clear audio
-            this.screen.empty(); // Clear the screen
+            
+            // Reset colors with transition
+            const resetColor = async (element, initialColors) => {
+                return new Promise(resolve => {
+                    const startTime = performance.now();
+                    const duration = 2000; // 2 second transition
+                    
+                    // Set up the transition
+                    element.css({
+                        'transition': `background-color ${duration}ms linear, color ${duration}ms linear`,
+                        'background-color': initialColors.background,
+                        'color': initialColors.color
+                    });
+                    
+                    // Force a reflow
+                    element[0].offsetHeight;
+                    
+                    // Check if colors have changed
+                    const checkColors = () => {
+                        const currentBg = element.css('background-color');
+                        const currentColor = element.css('color');
+                        const isComplete = currentBg === initialColors.background && 
+                                         currentColor === initialColors.color;
+                        
+                        if (isComplete || performance.now() - startTime >= duration) {
+                            element.css({
+                                'transition': '',
+                                'background-color': '',
+                                'color': ''
+                            });
+                            resolve();
+                        } else {
+                            requestAnimationFrame(checkColors);
+                        }
+                    };
+                    
+                    // Start checking colors
+                    checkColors();
+                    
+                    // Also listen for transitionend as a backup
+                    const onTransitionEnd = () => {
+                        element.off('transitionend', onTransitionEnd);
+                        element.css({
+                            'transition': '',
+                            'background-color': '',
+                            'color': ''
+                        });
+                        resolve();
+                    };
+                    
+                    element.on('transitionend', onTransitionEnd);
+                });
+            };
+
+            // Reset colors for both screen and body
+            await Promise.all([
+                resetColor(this.screen, this.initialColors.screen),
+                resetColor($('body'), this.initialColors.body)
+            ]);
+            
+            // Clear all scene elements from both screen and body
+            this.screen.empty();
+            $('body').find('.scene').remove();
+            
             if (this.scenes) {
                 // If audio is allowed, play scenes from current index
                 if (this.audioHandler.isAudioAllowed) {
                     // Clear any pending audio operations
                     this.audioHandler.stopAllTracks();
-                    this.playScenes(this.scenes, currentIndex);
+                    setTimeout(() => this.playScenes(this.scenes, startIndex), 0);
                 } else {
                     // If audio is not allowed, queue the first scene's audio
                     const firstScene = this.scenes[0];
                     if (firstScene && firstScene.arrive && firstScene.arrive.audio) {
                         this.audioHandler.handleAudio(firstScene.arrive.audio);
                     }
-                    this.playScenes(this.scenes, currentIndex);
+                    setTimeout(() => this.playScenes(this.scenes, startIndex), 0);
                 }
             }
         } finally {
