@@ -12,7 +12,11 @@
     {% block extra_styles %}{% endblock %}
 </head>
 <body>
-    <div id="screen" {% if screen_class %}class="{{ screen_class }}"{% endif %}></div>
+    <div id="backdrop">
+        <div id="theatre">
+            <div id="screen" {% if screen_class %}class="{{ screen_class }}"{% endif %}></div>
+        </div>
+    </div>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html> 

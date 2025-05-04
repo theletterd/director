@@ -70,7 +70,7 @@ var scenes = [
         dwell: 2000
     },
     {
-        directive: "fade_out"
+        directive: "fade_all"
     },
     {
         directive: "color",
@@ -86,5 +86,12 @@ var scenes = [
             ms_per_char: 50
         },
         dwell: 20000
+    },
+    {
+        directive: "color",
+        target: "screen",
+        background: "radial-gradient(circle at center,rgb(192, 41, 41) 0%,rgb(187, 168, 168) 100%)",
+        duration: 3000,
+        async: false
     },
 ];

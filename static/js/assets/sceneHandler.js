@@ -1,7 +1,7 @@
 class SceneHandler {
     constructor(screen, audioHandler) {
         this.screen = screen;
-        this.body = $('body');
+        this.theatre = $('#theatre');
         this.audioHandler = audioHandler;
         this.currentSceneIndex = 0;
         this.scenes = null;
@@ -13,23 +13,6 @@ class SceneHandler {
         // Set up logging first
         this.logger = typeof logger !== 'undefined' ? logger : console;
         logger.info("SceneHandler initialized with screen:", screen);
-
-        this.initialColors = {
-            screen: {
-                background: this.screen.css('background-color'),
-                color: this.screen.css('color')
-            },
-            body: {
-                background: this.body.css('background-color'),
-                color: this.body.css('color')
-            }
-        };
-
-        // Log initial colors
-        logger.debug("[Scene] Initial colors:", {
-            screen: this.initialColors.screen,
-            body: this.initialColors.body
-        });
 
         // Set up audio enabled callback
         this.audioHandler.setAudioEnabledCallback(() => {
@@ -227,12 +210,12 @@ class SceneHandler {
         // Determine the target elements
         let targets = [];
         if (scene.target === 'both') {
-            // When targeting both, only apply background to body
-            targets = [$('body')];
+            // When targeting both, only apply background to theatre
+            targets = [this.theatre];
             // Make screen background transparent
             this.screen.css('background', 'transparent');
         } else if (scene.target === 'background') {
-            targets = [$('body')];
+            targets = [this.theatre];
         } else if (scene.target === 'screen') {
             targets = [this.screen];
         } else {
@@ -323,13 +306,13 @@ class SceneHandler {
             }
         }
         
-        // Handle text color - apply to both screen and body when target is 'both'
+        // Handle text color - apply to both screen and theatre when target is 'both'
         if (scene.text) {
             logger.debug(`Setting text color to ${scene.text}`);
             const duration = this.getAdjustedDuration(scene.duration || 2000);
             
             // Determine text targets
-            const textTargets = scene.target === 'both' ? [$('body'), this.screen] : targets;
+            const textTargets = scene.target === 'both' ? [this.theatre, this.screen] : targets;
             
             // Apply text color transition to all targets
             textTargets.forEach(target => {
@@ -803,51 +786,39 @@ class SceneHandler {
             this.stop(); // Stop current playback and clear audio
             
             // Reset colors with transition
-            const resetColor = async (element, initialColors) => {
+            const resetColor = async (element) => {
                 return new Promise(resolve => {
-                    const startTime = performance.now();
                     const duration = 2000; // 2 second transition
                     
-                    // Set up the transition
+                    // First transition to opacity 0
                     element.css({
-                        'transition': `background-color ${duration}ms linear, color ${duration}ms linear`,
-                        'background-color': initialColors.background,
-                        'color': initialColors.color
+                        'transition': `opacity ${duration}ms linear`,
+                        'opacity': 0
                     });
                     
                     // Force a reflow
                     element[0].offsetHeight;
                     
-                    // Check if colors have changed
-                    const checkColors = () => {
-                        const currentBg = element.css('background-color');
-                        const currentColor = element.css('color');
-                        const isComplete = currentBg === initialColors.background && 
-                                         currentColor === initialColors.color;
-                        
-                        if (isComplete || performance.now() - startTime >= duration) {
-                            element.css({
-                                'transition': '',
-                                'background-color': '',
-                                'color': ''
-                            });
-                            resolve();
-                        } else {
-                            requestAnimationFrame(checkColors);
-                        }
-                    };
-                    
-                    // Start checking colors
-                    checkColors();
-                    
-                    // Also listen for transitionend as a backup
+                    // Wait for transition to complete
                     const onTransitionEnd = () => {
                         element.off('transitionend', onTransitionEnd);
+                        
+                        // Remove any elements
+                        if (element === this.screen) {
+                            this.screen.empty();
+                        } else if (element === this.theatre) {
+                            this.theatre.find('.scene').remove();
+                        }
+                        
+                        // Clear all styles to inherit from CSS
                         element.css({
-                            'transition': '',
                             'background-color': '',
-                            'color': ''
+                            'color': '',
+                            'opacity': '',
+                            'transition': '',
+                            'background-image': ''
                         });
+                        
                         resolve();
                     };
                     
@@ -855,15 +826,11 @@ class SceneHandler {
                 });
             };
 
-            // Reset colors for both screen and body
+            // Reset colors for both screen and theatre
             await Promise.all([
-                resetColor(this.screen, this.initialColors.screen),
-                resetColor(this.body, this.initialColors.body)
+                resetColor(this.screen),
+                resetColor(this.theatre)
             ]);
-            
-            // Clear all scene elements from both screen and body
-            this.screen.empty();
-            $('body').find('.scene').remove();
             
             if (this.scenes) {
                 // If audio is allowed, play scenes from current index
