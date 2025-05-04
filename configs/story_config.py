@@ -32,5 +32,11 @@ STORY_CONFIG = {
         'css': 'ziggy.css',
         'description': 'A story about Ziggy',
         'screen_class': 'ziggy-story'
+    },
+    'gradient_demo': {
+        'title': 'Gradient Demo',
+        'js': 'gradient-demo.js',
+        'description': 'Demonstration of background color and gradient transitions',
+        'screen_class': 'gradient-demo'
     }
 } 

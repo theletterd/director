@@ -122,6 +122,157 @@ class SceneHandler {
                     logger.debug("Fading all elements");
                     await this.fadeAllElements();
                     break;
+                case "color":
+                    logger.debug(`Setting color for ${scene.target || 'screen'}`);
+                    
+                    // Determine the target elements
+                    let targets = [];
+                    if (scene.target === 'both') {
+                        // When targeting both, only apply background to body
+                        targets = [$('body')];
+                        // Make screen background transparent
+                        this.screen.css('background', 'transparent');
+                    } else if (scene.target === 'body') {
+                        targets = [$('body')];
+                    } else if (scene.target === 'screen') {
+                        targets = [this.screen];
+                    } else {
+                        // Default to screen if no target specified
+                        targets = [this.screen];
+                    }
+                    
+                    // Handle background color
+                    if (scene.background) {
+                        logger.debug(`Transitioning background color to ${scene.background} over ${scene.duration || 2000}ms`);
+                        
+                        // Handle gradient background
+                        let backgroundValue = scene.background;
+                        let transitionPromises = [];
+                        
+                        if (typeof scene.background === 'object' && scene.background.gradient) {
+                            const gradientType = scene.background.gradient.type || 'linear';
+                            const direction = scene.background.gradient.direction || 'to right';
+                            const stops = scene.background.gradient.stops || [];
+                            
+                            if (stops.length < 2) {
+                                logger.warn("[Scene] Gradient requires at least 2 color stops");
+                                resolve();
+                                return;
+                            }
+                            
+                            const gradientStops = stops.map(stop => 
+                                `${stop.color} ${stop.position || ''}`
+                            ).join(', ');
+                            
+                            backgroundValue = `${gradientType}-gradient(${direction}, ${gradientStops})`;
+                            
+                            // Handle per-stop transitions if async is true
+                            if (scene.background.gradient.async) {
+                                stops.forEach((stop, index) => {
+                                    const stopDuration = stop.duration || scene.duration || 2000;
+                                    const adjustedDuration = this.getAdjustedDuration(stopDuration);
+                                    
+                                    // Create temporary elements for each target
+                                    targets.forEach(target => {
+                                        const tempElement = $('<div>').css({
+                                            'position': 'absolute',
+                                            'top': '0',
+                                            'left': '0',
+                                            'width': '100%',
+                                            'height': '100%',
+                                            'background': stop.color,
+                                            'opacity': '0',
+                                            'transition': `opacity ${adjustedDuration}ms linear`
+                                        });
+                                        
+                                        target.append(tempElement);
+                                        
+                                        // Force a reflow
+                                        tempElement[0].offsetHeight;
+                                        
+                                        // Start the transition
+                                        tempElement.css('opacity', '1');
+                                        
+                                        // Create a promise for this stop
+                                        const stopPromise = new Promise(stopResolve => {
+                                            const onTransitionEnd = () => {
+                                                tempElement.off('transitionend', onTransitionEnd);
+                                                tempElement.remove();
+                                                stopResolve();
+                                            };
+                                            tempElement.on('transitionend', onTransitionEnd);
+                                        });
+                                        
+                                        transitionPromises.push(stopPromise);
+                                    });
+                                });
+                            }
+                        }
+                        
+                        // Set up the main transition if not doing async gradient
+                        if (!scene.background.gradient?.async) {
+                            const duration = this.getAdjustedDuration(scene.duration || 2000);
+                            
+                            // Apply transition to all targets
+                            targets.forEach(target => {
+                                target.css({
+                                    'transition': `background ${duration}ms linear`
+                                });
+                                
+                                // Force a reflow
+                                target[0].offsetHeight;
+                                
+                                // Start the transition
+                                target.css('background', backgroundValue);
+                            });
+
+                            // Set up the transitionend listener on the first target
+                            const onTransitionEnd = () => {
+                                targets[0].off('transitionend', onTransitionEnd);
+                                resolve();
+                            };
+
+                            targets[0].on('transitionend', onTransitionEnd);
+                        } else {
+                            // Wait for all stop transitions to complete
+                            Promise.all(transitionPromises).then(() => {
+                                // Set the final gradient on all targets
+                                targets.forEach(target => {
+                                    target.css('background', backgroundValue);
+                                });
+                                resolve();
+                            });
+                        }
+                    }
+                    
+                    // Handle text color - apply to both screen and body when target is 'both'
+                    if (scene.text) {
+                        logger.debug(`Setting text color to ${scene.text}`);
+                        const duration = this.getAdjustedDuration(scene.duration || 2000);
+                        
+                        // Determine text targets
+                        const textTargets = scene.target === 'both' ? [$('body'), this.screen] : targets;
+                        
+                        // Apply text color transition to all targets
+                        textTargets.forEach(target => {
+                            target.css({
+                                'transition': `color ${duration}ms linear`,
+                                'color': scene.text
+                            });
+                            
+                            // Force a reflow
+                            target[0].offsetHeight;
+                        });
+                        
+                        // Set up the transitionend listener on the first target
+                        const onTransitionEnd = () => {
+                            textTargets[0].off('transitionend', onTransitionEnd);
+                            resolve();
+                        };
+                        
+                        textTargets[0].on('transitionend', onTransitionEnd);
+                    }
+                    break;
                 case "stop_audio":
                     logger.info(`[Scene] Stopping audio track: ${scene.trackId || 'all'}`);
                     try {

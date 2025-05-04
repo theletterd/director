@@ -725,5 +725,15 @@ which defines the frames, and the number of milliseconds per frame.\n\ne.g.:",
 			transition: "keep",
 		}
 	},
+	{
+		content: "BYE",
+		arrive: {
+			transition: "show",
+		},
+		dwell: 2000,
+		depart: {
+			transition: "keep",
+		}
+	},
 	{directive: "clear"}
 ];

@@ -158,6 +158,45 @@ Special scene commands that control the presentation:
       directive: "fade_all"
   }
   ```
+- `background_color`: Smoothly transition the background color
+  ```javascript
+  {
+      directive: "background_color",
+      color: "#ff0000",  // Any valid CSS color
+      duration: 2000,    // optional, milliseconds (default: 2000)
+      target: "#myElement"  // optional, CSS selector (default: body)
+  }
+  ```
+  For gradient backgrounds:
+  ```javascript
+  {
+      directive: "background_color",
+      gradient: {
+          type: "linear",  // or "radial"
+          direction: "to right",  // gradient direction
+          stops: [
+              { 
+                  color: "#ff0000", 
+                  position: "0%",
+                  duration: 1000  // optional, per-stop duration
+              },
+              { 
+                  color: "#00ff00", 
+                  position: "50%",
+                  duration: 2000  // optional, per-stop duration
+              },
+              { 
+                  color: "#0000ff", 
+                  position: "100%",
+                  duration: 3000  // optional, per-stop duration
+              }
+          ],
+          async: true  // optional, transitions each stop independently
+      },
+      duration: 2000,  // optional, default duration for stops
+      target: "#myElement"  // optional
+  }
+  ```
 - `stop_audio`: Stop all audio tracks
   ```javascript
   {
