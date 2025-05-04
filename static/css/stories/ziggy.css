@@ -1,5 +1,5 @@
 body {
-    background-color: #000;
+    background-color: #020202;
     color: #fff;
     font-family: monospace;
     margin: 0;
@@ -15,8 +15,18 @@ body {
     line-height: 1.5;
     white-space: pre-wrap;
     background-color: #000;
+    mask-image: 
+        linear-gradient(to top,    transparent, black 8%),
+        linear-gradient(to right,  transparent, black 8%),
+        linear-gradient(to bottom, transparent, black 3%),
+        linear-gradient(to left,   transparent, black 8%);
+    mask-composite: intersect;
+  border-radius: 20px;
+  padding: 20px;
+  margin: 30px;
 }
 
 .scene {
     margin-bottom: 1em;
+    margin-left: 30px;
 } 

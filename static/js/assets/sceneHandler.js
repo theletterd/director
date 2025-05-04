@@ -1,6 +1,7 @@
 class SceneHandler {
     constructor(screen, audioHandler) {
         this.screen = screen;
+        this.body = $('body');
         this.audioHandler = audioHandler;
         this.currentSceneIndex = 0;
         this.scenes = null;
@@ -8,21 +9,27 @@ class SceneHandler {
         this.onSceneCompleteCallbacks = new Map();
         this.isRestarting = false;
         this.speedMultiplier = 1.0;
+
+        // Set up logging first
+        this.logger = typeof logger !== 'undefined' ? logger : console;
+        logger.info("SceneHandler initialized with screen:", screen);
+
         this.initialColors = {
             screen: {
                 background: this.screen.css('background-color'),
                 color: this.screen.css('color')
             },
             body: {
-                background: $('body').css('background-color'),
-                color: $('body').css('color')
+                background: this.body.css('background-color'),
+                color: this.body.css('color')
             }
         };
 
-        // Set up logging
-        this.logger = typeof logger !== 'undefined' ? logger : console;
-
-        logger.info("SceneHandler initialized with screen:", screen);
+        // Log initial colors
+        logger.debug("[Scene] Initial colors:", {
+            screen: this.initialColors.screen,
+            body: this.initialColors.body
+        });
 
         // Set up audio enabled callback
         this.audioHandler.setAudioEnabledCallback(() => {
@@ -851,7 +858,7 @@ class SceneHandler {
             // Reset colors for both screen and body
             await Promise.all([
                 resetColor(this.screen, this.initialColors.screen),
-                resetColor($('body'), this.initialColors.body)
+                resetColor(this.body, this.initialColors.body)
             ]);
             
             // Clear all scene elements from both screen and body
