@@ -110,242 +110,23 @@ class SceneHandler {
                     this.screen.empty();
                     break;
                 case "blankline":
-                    logger.debug("Adding blank line");
-                    const blankLine = $('<div>');
-                    blankLine.css({
-                        'height': '1.2em',
-                        'display': 'block'
-                    });
-                    this.screen.append(blankLine);
+                    await this.handleBlankLine();
                     break;
                 case "fade_all":
                     logger.debug("Fading all elements");
                     await this.fadeAllElements();
                     break;
                 case "color":
-                    logger.debug(`Setting color for ${scene.target || 'screen'}`);
-                    
-                    // Determine the target elements
-                    let targets = [];
-                    if (scene.target === 'both') {
-                        // When targeting both, only apply background to body
-                        targets = [$('body')];
-                        // Make screen background transparent
-                        this.screen.css('background', 'transparent');
-                    } else if (scene.target === 'body') {
-                        targets = [$('body')];
-                    } else if (scene.target === 'screen') {
-                        targets = [this.screen];
-                    } else {
-                        // Default to screen if no target specified
-                        targets = [this.screen];
-                    }
-                    
-                    // Handle background color
-                    if (scene.background) {
-                        logger.debug(`Transitioning background color to ${scene.background} over ${scene.duration || 2000}ms`);
-                        
-                        // Handle gradient background
-                        let backgroundValue = scene.background;
-                        let transitionPromises = [];
-                        
-                        if (typeof scene.background === 'object' && scene.background.gradient) {
-                            const gradientType = scene.background.gradient.type || 'linear';
-                            const direction = scene.background.gradient.direction || 'to right';
-                            const stops = scene.background.gradient.stops || [];
-                            
-                            if (stops.length < 2) {
-                                logger.warn("[Scene] Gradient requires at least 2 color stops");
-                                resolve();
-                                return;
-                            }
-                            
-                            const gradientStops = stops.map(stop => 
-                                `${stop.color} ${stop.position || ''}`
-                            ).join(', ');
-                            
-                            backgroundValue = `${gradientType}-gradient(${direction}, ${gradientStops})`;
-                            
-                            // Handle per-stop transitions if async is true
-                            if (scene.background.gradient.async) {
-                                stops.forEach((stop, index) => {
-                                    const stopDuration = stop.duration || scene.duration || 2000;
-                                    const adjustedDuration = this.getAdjustedDuration(stopDuration);
-                                    
-                                    // Create temporary elements for each target
-                                    targets.forEach(target => {
-                                        const tempElement = $('<div>').css({
-                                            'position': 'absolute',
-                                            'top': '0',
-                                            'left': '0',
-                                            'width': '100%',
-                                            'height': '100%',
-                                            'background': stop.color,
-                                            'opacity': '0',
-                                            'transition': `opacity ${adjustedDuration}ms linear`
-                                        });
-                                        
-                                        target.append(tempElement);
-                                        
-                                        // Force a reflow
-                                        tempElement[0].offsetHeight;
-                                        
-                                        // Start the transition
-                                        tempElement.css('opacity', '1');
-                                        
-                                        // Create a promise for this stop
-                                        const stopPromise = new Promise(stopResolve => {
-                                            const onTransitionEnd = () => {
-                                                tempElement.off('transitionend', onTransitionEnd);
-                                                tempElement.remove();
-                                                stopResolve();
-                                            };
-                                            tempElement.on('transitionend', onTransitionEnd);
-                                        });
-                                        
-                                        transitionPromises.push(stopPromise);
-                                    });
-                                });
-                            }
-                        }
-                        
-                        // Set up the main transition if not doing async gradient
-                        if (!scene.background.gradient?.async) {
-                            const duration = this.getAdjustedDuration(scene.duration || 2000);
-                            
-                            // Apply transition to all targets
-                            targets.forEach(target => {
-                                target.css({
-                                    'transition': `background ${duration}ms linear`
-                                });
-                                
-                                // Force a reflow
-                                target[0].offsetHeight;
-                                
-                                // Start the transition
-                                target.css('background', backgroundValue);
-                            });
-
-                            // Set up the transitionend listener on the first target
-                            const onTransitionEnd = () => {
-                                targets[0].off('transitionend', onTransitionEnd);
-                                resolve();
-                            };
-
-                            targets[0].on('transitionend', onTransitionEnd);
-                        } else {
-                            // Wait for all stop transitions to complete
-                            Promise.all(transitionPromises).then(() => {
-                                // Set the final gradient on all targets
-                                targets.forEach(target => {
-                                    target.css('background', backgroundValue);
-                                });
-                                resolve();
-                            });
-                        }
-                    }
-                    
-                    // Handle text color - apply to both screen and body when target is 'both'
-                    if (scene.text) {
-                        logger.debug(`Setting text color to ${scene.text}`);
-                        const duration = this.getAdjustedDuration(scene.duration || 2000);
-                        
-                        // Determine text targets
-                        const textTargets = scene.target === 'both' ? [$('body'), this.screen] : targets;
-                        
-                        // Apply text color transition to all targets
-                        textTargets.forEach(target => {
-                            target.css({
-                                'transition': `color ${duration}ms linear`,
-                                'color': scene.text
-                            });
-                            
-                            // Force a reflow
-                            target[0].offsetHeight;
-                        });
-                        
-                        // Set up the transitionend listener on the first target
-                        const onTransitionEnd = () => {
-                            textTargets[0].off('transitionend', onTransitionEnd);
-                            resolve();
-                        };
-                        
-                        textTargets[0].on('transitionend', onTransitionEnd);
-                    }
+                    await this.handleColorDirective(scene, resolve);
                     break;
                 case "stop_audio":
-                    logger.info(`[Scene] Stopping audio track: ${scene.trackId || 'all'}`);
-                    try {
-                        if (scene.trackId) {
-                            await this.audioHandler.stopTrack(scene.trackId);
-                            logger.info(`[Scene] Successfully stopped track: ${scene.trackId}`);
-                        } else {
-                            await this.audioHandler.stopAllTracks();
-                            logger.info("[Scene] Successfully stopped all tracks");
-                        }
-                        // Add a small delay to ensure the stop operation is complete
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                    } catch (error) {
-                        logger.error("[Scene] Error stopping audio:", error);
-                    }
+                    await this.handleStopAudio(scene);
                     break;
                 case "fade_audio":
-                    logger.debug(`Fading audio track: ${scene.trackId} over ${scene.duration || 2000}ms`);
-                    try {
-                        if (scene.trackId) {
-                            // Create audio config for fade out
-                            const audio = {
-                                trackId: scene.trackId,
-                                fadeOut: scene.duration || 2000
-                            };
-
-                            // Start the fade and wait if requested
-                            if (scene.wait_for_fade) {
-                                logger.debug(`Waiting for fade to complete`);
-                                await this.handleAudio(audio);
-                                // After fade is complete, ensure the track is stopped
-                                this.audioHandler.stopTrack(scene.trackId);
-                            } else {
-                                // Start fade but don't wait
-                                this.handleAudio(audio).catch(error => {
-                                    logger.error("Error during fade_audio:", error);
-                                });
-                            }
-                        }
-                    } catch (error) {
-                        logger.error("Error during fade_audio:", error);
-                    }
+                    await this.handleFadeAudio(scene);
                     break;
                 case "fade_all_audio":
-                    logger.debug(`Fading all audio tracks over ${scene.duration || 2000}ms`);
-                    try {
-                        const trackIds = this.audioHandler.getAllTrackIds();
-                        if (trackIds.length === 0) {
-                            logger.debug("No audio tracks to fade out");
-                            resolve();
-                            break;
-                        }
-
-                        // Start fading all tracks
-                        for (const trackId of trackIds) {
-                            this.audioHandler.fadeOutTrack(trackId, scene.duration || 2000);
-                        }
-
-                        // Always wait for the fade to complete
-                        const fadeDuration = scene.duration || 2000;
-                        logger.debug(`Waiting for ${fadeDuration}ms for fade to complete`);
-                        
-                        // Add a small buffer to ensure the fade is complete
-                        await new Promise(resolve => setTimeout(resolve, fadeDuration + 100));
-                        
-                        // Ensure all tracks are stopped
-                        for (const trackId of trackIds) {
-                            this.audioHandler.stopTrack(trackId);
-                        }
-                    } catch (error) {
-                        logger.error("Error during fade_all_audio:", error);
-                    }
-                    resolve();
+                    await this.handleFadeAllAudio(scene, resolve);
                     break;
             }
 
@@ -367,6 +148,225 @@ class SceneHandler {
         }
 
         return true;
+    }
+
+    async handleBlankLine() {
+        logger.debug("Adding blank line");
+        const blankLine = $('<div>');
+        blankLine.css({
+            'height': '1.2em',
+            'display': 'block'
+        });
+        this.screen.append(blankLine);
+    }
+
+    async handleStopAudio(scene) {
+        logger.info(`[Scene] Stopping audio track: ${scene.trackId || 'all'}`);
+        try {
+            if (scene.trackId) {
+                await this.audioHandler.stopTrack(scene.trackId);
+                logger.info(`[Scene] Successfully stopped track: ${scene.trackId}`);
+            } else {
+                await this.audioHandler.stopAllTracks();
+                logger.info("[Scene] Successfully stopped all tracks");
+            }
+            // Add a small delay to ensure the stop operation is complete
+            await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (error) {
+            logger.error("[Scene] Error stopping audio:", error);
+        }
+    }
+
+    async handleFadeAudio(scene) {
+        logger.debug(`Fading audio track: ${scene.trackId} over ${scene.duration || 2000}ms`);
+        try {
+            if (scene.trackId) {
+                // Create audio config for fade out
+                const audio = {
+                    trackId: scene.trackId,
+                    fadeOut: scene.duration || 2000
+                };
+
+                // Start the fade and wait if requested
+                if (scene.wait_for_fade) {
+                    logger.debug(`Waiting for fade to complete`);
+                    await this.handleAudio(audio);
+                    // After fade is complete, ensure the track is stopped
+                    this.audioHandler.stopTrack(scene.trackId);
+                } else {
+                    // Start fade but don't wait
+                    this.handleAudio(audio).catch(error => {
+                        logger.error("Error during fade_audio:", error);
+                    });
+                }
+            }
+        } catch (error) {
+            logger.error("Error during fade_audio:", error);
+        }
+    }
+
+    async handleColorDirective(scene, resolve) {
+        logger.debug(`Setting color for ${scene.target || 'screen'}`);
+        
+        // Determine the target elements
+        let targets = [];
+        if (scene.target === 'both') {
+            // When targeting both, only apply background to body
+            targets = [$('body')];
+            // Make screen background transparent
+            this.screen.css('background', 'transparent');
+        } else if (scene.target === 'body') {
+            targets = [$('body')];
+        } else if (scene.target === 'screen') {
+            targets = [this.screen];
+        } else {
+            // Default to screen if no target specified
+            targets = [this.screen];
+        }
+        
+        // Handle background color
+        if (scene.background) {
+            logger.debug(`Transitioning background color to ${scene.background} over ${scene.duration || 2000}ms`);
+            
+            // Handle gradient background
+            let backgroundValue = scene.background;
+            
+            if (typeof scene.background === 'object' && scene.background.gradient) {
+                const gradientType = scene.background.gradient.type || 'linear';
+                const direction = scene.background.gradient.direction || 'to right';
+                const stops = scene.background.gradient.stops || [];
+                
+                if (stops.length < 2) {
+                    logger.warn("[Scene] Gradient requires at least 2 color stops");
+                    resolve();
+                    return;
+                }
+                
+                const gradientStops = stops.map(stop => 
+                    `${stop.color} ${stop.position || ''}`
+                ).join(', ');
+                
+                backgroundValue = `${gradientType}-gradient(${direction}, ${gradientStops})`;
+            }
+            
+            // Apply the transition
+            const duration = this.getAdjustedDuration(scene.duration || 2000);
+            
+            // Apply transition to all targets
+            targets.forEach(target => {
+                target.css({
+                    'transition': `background ${duration}ms linear`
+                });
+                
+                // Force a reflow
+                target[0].offsetHeight;
+                
+                // Start the transition
+                target.css('background', backgroundValue);
+            });
+
+            // If async is true, resolve immediately
+            if (scene.async) {
+                logger.debug("[Scene] Async transition, resolving immediately");
+                resolve();
+            } else {
+                // If async is false, wait for transition to complete
+                logger.debug("[Scene] Non-async transition, waiting for completion");
+                
+                // Create a promise that resolves when all transitions are complete
+                const transitionComplete = new Promise(resolveTransition => {
+                    let completedTransitions = 0;
+                    const totalTransitions = targets.length;
+                    const startTime = performance.now();
+                    
+                    // Function to check if transition is complete
+                    const checkTransitionComplete = () => {
+                        const currentTime = performance.now();
+                        const elapsedTime = currentTime - startTime;
+                        
+                        // If we've exceeded the duration, consider it complete
+                        if (elapsedTime >= duration) {
+                            completedTransitions++;
+                            if (completedTransitions === totalTransitions) {
+                                logger.debug("[Scene] All transitions completed after duration");
+                                resolveTransition();
+                            }
+                        } else {
+                            // Check again in the next frame
+                            requestAnimationFrame(checkTransitionComplete);
+                        }
+                    };
+                    
+                    // Start checking
+                    checkTransitionComplete();
+                });
+                
+                // Wait for transition to complete before resolving
+                await transitionComplete;
+                resolve();
+            }
+        }
+        
+        // Handle text color - apply to both screen and body when target is 'both'
+        if (scene.text) {
+            logger.debug(`Setting text color to ${scene.text}`);
+            const duration = this.getAdjustedDuration(scene.duration || 2000);
+            
+            // Determine text targets
+            const textTargets = scene.target === 'both' ? [$('body'), this.screen] : targets;
+            
+            // Apply text color transition to all targets
+            textTargets.forEach(target => {
+                target.css({
+                    'transition': `color ${duration}ms linear`,
+                    'color': scene.text
+                });
+                
+                // Force a reflow
+                target[0].offsetHeight;
+            });
+            
+            // If async is true, resolve immediately
+            if (scene.async) {
+                logger.debug("[Scene] Async text transition, resolving immediately");
+                resolve();
+            } else {
+                // If async is false, wait for transition to complete
+                logger.debug("[Scene] Non-async text transition, waiting for completion");
+                
+                // Create a promise that resolves when all transitions are complete
+                const transitionComplete = new Promise(resolveTransition => {
+                    let completedTransitions = 0;
+                    const totalTransitions = textTargets.length;
+                    const startTime = performance.now();
+                    
+                    // Function to check if transition is complete
+                    const checkTransitionComplete = () => {
+                        const currentTime = performance.now();
+                        const elapsedTime = currentTime - startTime;
+                        
+                        // If we've exceeded the duration, consider it complete
+                        if (elapsedTime >= duration) {
+                            completedTransitions++;
+                            if (completedTransitions === totalTransitions) {
+                                logger.debug("[Scene] All text transitions completed after duration");
+                                resolveTransition();
+                            }
+                        } else {
+                            // Check again in the next frame
+                            requestAnimationFrame(checkTransitionComplete);
+                        }
+                    };
+                    
+                    // Start checking
+                    checkTransitionComplete();
+                });
+                
+                // Wait for transition to complete before resolving
+                await transitionComplete;
+                resolve();
+            }
+        }
     }
 
     async fadeAllElements() {
@@ -887,6 +887,38 @@ class SceneHandler {
             logger.error(`Error in playScene: ${error.message}`);
             throw error;
         }
+    }
+
+    async handleFadeAllAudio(scene, resolve) {
+        logger.debug(`Fading all audio tracks over ${scene.duration || 2000}ms`);
+        try {
+            const trackIds = this.audioHandler.getAllTrackIds();
+            if (trackIds.length === 0) {
+                logger.debug("No audio tracks to fade out");
+                resolve();
+                return;
+            }
+
+            // Start fading all tracks
+            for (const trackId of trackIds) {
+                this.audioHandler.fadeOutTrack(trackId, scene.duration || 2000);
+            }
+
+            // Always wait for the fade to complete
+            const fadeDuration = scene.duration || 2000;
+            logger.debug(`Waiting for ${fadeDuration}ms for fade to complete`);
+            
+            // Add a small buffer to ensure the fade is complete
+            await new Promise(resolve => setTimeout(resolve, fadeDuration + 100));
+            
+            // Ensure all tracks are stopped
+            for (const trackId of trackIds) {
+                this.audioHandler.stopTrack(trackId);
+            }
+        } catch (error) {
+            logger.error("Error during fade_all_audio:", error);
+        }
+        resolve();
     }
 }
 
