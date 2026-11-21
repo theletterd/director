@@ -1,0 +1,12 @@
+#screen {
+    width: auto;
+    max-width: 52ch;
+    margin: 18vh auto 0;
+    font-size: 17px;
+    /* A faint glow in the text colour: invisible by day, firefly-ish at night */
+    text-shadow: 0 0 6px color-mix(in srgb, currentColor 55%, transparent);
+}
+
+#screen .scene {
+    line-height: 1.35;
+}

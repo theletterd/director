@@ -35,6 +35,12 @@ STORY_CONFIG = {
         'description': 'A story about Ziggy',
         'screen_class': 'ziggy-story'
     },
+    'lumen': {
+        'title': 'Lumen',
+        'js': 'lumen.js',
+        'css': 'lumen.css',
+        'description': 'A firefly in the dark, looking for someone to blink back'
+    },
     'gradient_demo': {
         'title': 'Gradient Demo',
         'js': 'gradient-demo.js',
