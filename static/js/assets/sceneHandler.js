@@ -1,979 +1,439 @@
+// Plays a list of scenes onto the screen: text, typewriter effects, frame
+// animations, colour changes and audio cues. See README.md for the scene format.
+
+const DEFAULTS = {
+    fadeMs: 1000,          // fade transitions
+    msPerChar: 50,         // typewriter speed
+    frameMs: 100,          // animation frame length
+    colorMs: 2000,         // colour directive
+    fadeAllMs: 2000,       // fade_all directive
+    audioFadeMs: 2000,     // fade_audio / fade_all_audio directives
+    resetMs: 2000,         // fade-out between loops / on restart
+    betweenScenesMs: 50,   // pause between consecutive scenes
+};
+
+class PlaybackCancelled extends Error {
+    constructor() {
+        super('Playback cancelled');
+        this.name = 'PlaybackCancelled';
+    }
+}
+
+// One token per playback run. Stopping or restarting cancels the token, and
+// every wait checks it, so a superseded run unwinds instead of carrying on.
+class PlaybackToken {
+    constructor() {
+        this.cancelled = false;
+    }
+
+    cancel() {
+        this.cancelled = true;
+    }
+
+    check() {
+        if (this.cancelled) throw new PlaybackCancelled();
+    }
+}
+
 class SceneHandler {
-    constructor(screen, audioHandler) {
+    constructor(screen, audioHandler, { theatre = $('#theatre'), backdrop = $('#backdrop') } = {}) {
         this.screen = screen;
-        this.theatre = $('#theatre');
+        this.theatre = theatre;
+        this.backdrop = backdrop;
         this.audioHandler = audioHandler;
+
+        this.scenes = [];
+        this.startIndex = 0;
         this.currentSceneIndex = 0;
-        this.scenes = null;
-        this.isPlaying = false;
-        this.onSceneCompleteCallbacks = new Map();
-        this.isRestarting = false;
-        this.speedMultiplier = 1.0;
+        this.speedMultiplier = 1;
+        this.token = new PlaybackToken();
+        this.animations = new Map(); // DOM element -> interval id
 
-        // Set up logging first
-        this.logger = typeof logger !== 'undefined' ? logger : console;
-        logger.info("SceneHandler initialized with screen:", screen);
-
-        // Set up audio enabled callback
+        // Scenes that ran before audio was enabled played silently, so replay.
         this.audioHandler.setAudioEnabledCallback(() => {
-            logger.info("[Scene] Audio enabled, restarting scenes");
-            this.restartScenes();
+            logger.info('[Scene] Audio enabled, restarting');
+            this.restart();
         });
     }
+
+    get isPlaying() {
+        return !this.token.cancelled && this.scenes.length > 0;
+    }
+
+    // ---- Timing -----------------------------------------------------------
 
     setSpeedMultiplier(multiplier) {
         if (multiplier > 0) {
             this.speedMultiplier = multiplier;
-            logger.info(`[Scene] Speed multiplier set to: ${multiplier}`);
         } else {
             logger.warn(`[Scene] Invalid speed multiplier: ${multiplier}`);
         }
     }
 
-    getAdjustedDuration(duration) {
-        return Math.max(1, Math.floor(duration / this.speedMultiplier));
+    // Convert a story duration (ms at normal speed) to real ms.
+    scale(ms) {
+        return Math.max(1, Math.round(ms / this.speedMultiplier));
     }
 
-    onSceneComplete(sceneIndex, callback) {
-        this.onSceneCompleteCallbacks.set(sceneIndex, callback);
+    // Wait `ms` real milliseconds, then throw if the run was cancelled meanwhile.
+    async delay(ms, token = this.token) {
+        await new Promise(resolve => setTimeout(resolve, ms));
+        token.check();
     }
 
-    async processScene(scene) {
-        const sceneStartTime = performance.now();
-
-        try {
-            if (!scene) {
-                logger.error("[Scene] Scene is null or undefined");
-                return;
-            }
-
-            logger.debug(`[Scene ${this.currentSceneIndex}] Processing scene:`, JSON.stringify(scene, null, 2));
-
-            // Handle directive if present
-            if (scene.directive) {
-                await this.handleDirective(scene);
-                logger.info(`[Scene ${this.currentSceneIndex}] Directive took ${(performance.now() - sceneStartTime).toFixed(2)}ms`);
-                return;
-            }
-
-            // Create and add the scene element
-            const sceneElement = this.createSceneElement(scene);
-            logger.info(`[Scene ${this.currentSceneIndex}] Element creation took ${(performance.now() - sceneStartTime).toFixed(2)}ms`);
-
-            // Handle arrival phase
-            if (scene.arrive) {
-                await this.handleArrival(sceneElement, scene.arrive);
-                logger.info(`[Scene ${this.currentSceneIndex}] Arrival took ${(performance.now() - sceneStartTime).toFixed(2)}ms`);
-            }
-
-            // Wait for dwell time
-            if (scene.dwell) {
-                await this.sleep(scene.dwell);
-                logger.info(`[Scene ${this.currentSceneIndex}] Dwell took ${(performance.now() - sceneStartTime).toFixed(2)}ms`);
-            }
-
-            // Handle departure phase
-            if (scene.depart) {
-                await this.handleDeparture(sceneElement, scene.depart);
-                logger.info(`[Scene ${this.currentSceneIndex}] Departure took ${(performance.now() - sceneStartTime).toFixed(2)}ms`);
-            }
-
-            const totalDuration = performance.now() - sceneStartTime;
-            logger.info(`[Scene ${this.currentSceneIndex}] Total scene duration: ${totalDuration.toFixed(2)}ms`);
-
-            // Notify that this scene is complete
-            const callback = this.onSceneCompleteCallbacks.get(this.currentSceneIndex);
-            if (callback) {
-                callback();
-                this.onSceneCompleteCallbacks.delete(this.currentSceneIndex);
-            }
-
-            return totalDuration;
-        } catch (error) {
-            logger.error("[Scene] Error processing scene:", error);
-            throw error;
-        }
+    // Wait a story duration (scaled by the speed multiplier).
+    sleep(ms, token = this.token) {
+        return this.delay(this.scale(ms), token);
     }
 
-    async handleDirective(scene) {
-        if (!scene.directive) {
-            logger.debug("No directive found in scene");
-            return false;
-        }
+    // ---- Playback control -------------------------------------------------
 
-        logger.info(`[Scene] Handling directive: ${scene.directive}`);
-        const directiveComplete = new Promise(async (resolve) => {
-            switch (scene.directive) {
-                case "clear":
-                    logger.debug("Clearing screen");
-                    this.screen.empty();
-                    break;
-                case "blankline":
-                    await this.handleBlankLine();
-                    break;
-                case "fade_all":
-                    logger.debug("Fading all elements");
-                    await this.fadeAllElements();
-                    break;
-                case "color":
-                    await this.handleColorDirective(scene, resolve);
-                    break;
-                case "stop_audio":
-                    await this.handleStopAudio(scene);
-                    break;
-                case "fade_audio":
-                    await this.handleFadeAudio(scene);
-                    break;
-                case "fade_all_audio":
-                    await this.handleFadeAllAudio(scene, resolve);
-                    break;
-            }
+    // Play `scenes` from `startIndex`, looping forever until stopped.
+    // Any run already in progress is cancelled first.
+    async play(scenes, startIndex = 0, { reset = false } = {}) {
+        this.stop();
+        const token = this.token = new PlaybackToken();
 
-            // If there's a dwell time, wait for it
-            if (scene.dwell) {
-                await this.sleep(scene.dwell);
-            }
-
-            resolve();
-        });
-
-        // Notify that this scene is complete
-        const callback = this.onSceneCompleteCallbacks.get(this.currentSceneIndex);
-        if (callback) {
-            directiveComplete.then(() => {
-                callback();
-                this.onSceneCompleteCallbacks.delete(this.currentSceneIndex);
-            });
-        }
-
-        return true;
-    }
-
-    async handleBlankLine() {
-        logger.debug("Adding blank line");
-        const blankLine = $('<div>');
-        blankLine.css({
-            'height': '1.2em',
-            'display': 'block'
-        });
-        this.screen.append(blankLine);
-    }
-
-    async handleStopAudio(scene) {
-        logger.info(`[Scene] Stopping audio track: ${scene.trackId || 'all'}`);
-        try {
-            if (scene.trackId) {
-                await this.audioHandler.stopTrack(scene.trackId);
-                logger.info(`[Scene] Successfully stopped track: ${scene.trackId}`);
-            } else {
-                await this.audioHandler.stopAllTracks();
-                logger.info("[Scene] Successfully stopped all tracks");
-            }
-            // Add a small delay to ensure the stop operation is complete
-            await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (error) {
-            logger.error("[Scene] Error stopping audio:", error);
-        }
-    }
-
-    async handleFadeAudio(scene) {
-        logger.debug(`Fading audio track: ${scene.trackId} over ${scene.duration || 2000}ms`);
-        try {
-            if (scene.trackId) {
-                // Create audio config for fade out
-                const audio = {
-                    trackId: scene.trackId,
-                    fadeOut: scene.duration || 2000
-                };
-
-                // Start the fade and wait if requested
-                if (scene.wait_for_fade) {
-                    logger.debug(`Waiting for fade to complete`);
-                    await this.handleAudio(audio);
-                    // After fade is complete, ensure the track is stopped
-                    this.audioHandler.stopTrack(scene.trackId);
-                } else {
-                    // Start fade but don't wait
-                    this.handleAudio(audio).catch(error => {
-                        logger.error("Error during fade_audio:", error);
-                    });
-                }
-            }
-        } catch (error) {
-            logger.error("Error during fade_audio:", error);
-        }
-    }
-
-    async handleColorDirective(scene, resolve) {
-        logger.debug(`Setting color for ${scene.target || 'screen'}`);
-        
-        // Determine the target elements
-        let targets = [];
-        if (scene.target === 'both') {
-            // When targeting both, only apply background to theatre
-            targets = [this.theatre];
-            // Make screen background transparent
-            this.screen.css('background', 'transparent');
-        } else if (scene.target === 'background') {
-            targets = [this.theatre];
-        } else if (scene.target === 'screen') {
-            targets = [this.screen];
-        } else {
-            // Default to screen if no target specified
-            targets = [this.screen];
-        }
-        
-        // Handle background color
-        if (scene.background) {
-            logger.debug(`Transitioning background color to ${scene.background} over ${scene.duration || 2000}ms`);
-            
-            // Handle gradient background
-            let backgroundValue = scene.background;
-            
-            if (typeof scene.background === 'object' && scene.background.gradient) {
-                const gradientType = scene.background.gradient.type || 'linear';
-                const direction = scene.background.gradient.direction || 'to right';
-                const stops = scene.background.gradient.stops || [];
-                
-                if (stops.length < 2) {
-                    logger.warn("[Scene] Gradient requires at least 2 color stops");
-                    resolve();
-                    return;
-                }
-                
-                const gradientStops = stops.map(stop => 
-                    `${stop.color} ${stop.position || ''}`
-                ).join(', ');
-                
-                backgroundValue = `${gradientType}-gradient(${direction}, ${gradientStops})`;
-            }
-            
-            // Apply the transition
-            const duration = this.getAdjustedDuration(scene.duration || 2000);
-            
-            // Apply transition to all targets
-            targets.forEach(target => {
-                target.css({
-                    'transition': `background ${duration}ms linear`
-                });
-                
-                // Force a reflow
-                target[0].offsetHeight;
-                
-                // Start the transition
-                target.css('background', backgroundValue);
-            });
-
-            // If async is true, resolve immediately
-            if (scene.async) {
-                logger.debug("[Scene] Async transition, resolving immediately");
-                resolve();
-            } else {
-                // If async is false, wait for transition to complete
-                logger.debug("[Scene] Non-async transition, waiting for completion");
-                
-                // Create a promise that resolves when all transitions are complete
-                const transitionComplete = new Promise(resolveTransition => {
-                    let completedTransitions = 0;
-                    const totalTransitions = targets.length;
-                    const startTime = performance.now();
-                    
-                    // Function to check if transition is complete
-                    const checkTransitionComplete = () => {
-                        const currentTime = performance.now();
-                        const elapsedTime = currentTime - startTime;
-                        
-                        // If we've exceeded the duration, consider it complete
-                        if (elapsedTime >= duration) {
-                            completedTransitions++;
-                            if (completedTransitions === totalTransitions) {
-                                logger.debug("[Scene] All transitions completed after duration");
-                                resolveTransition();
-                            }
-                        } else {
-                            // Check again in the next frame
-                            requestAnimationFrame(checkTransitionComplete);
-                        }
-                    };
-                    
-                    // Start checking
-                    checkTransitionComplete();
-                });
-                
-                // Wait for transition to complete before resolving
-                await transitionComplete;
-                resolve();
-            }
-        }
-        
-        // Handle text color - apply to both screen and theatre when target is 'both'
-        if (scene.text) {
-            logger.debug(`Setting text color to ${scene.text}`);
-            const duration = this.getAdjustedDuration(scene.duration || 2000);
-            
-            // Determine text targets
-            const textTargets = scene.target === 'both' ? [this.theatre, this.screen] : targets;
-            
-            // Apply text color transition to all targets
-            textTargets.forEach(target => {
-                target.css({
-                    'transition': `color ${duration}ms linear`,
-                    'color': scene.text
-                });
-                
-                // Force a reflow
-                target[0].offsetHeight;
-            });
-            
-            // If async is true, resolve immediately
-            if (scene.async) {
-                logger.debug("[Scene] Async text transition, resolving immediately");
-                resolve();
-            } else {
-                // If async is false, wait for transition to complete
-                logger.debug("[Scene] Non-async text transition, waiting for completion");
-                
-                // Create a promise that resolves when all transitions are complete
-                const transitionComplete = new Promise(resolveTransition => {
-                    let completedTransitions = 0;
-                    const totalTransitions = textTargets.length;
-                    const startTime = performance.now();
-                    
-                    // Function to check if transition is complete
-                    const checkTransitionComplete = () => {
-                        const currentTime = performance.now();
-                        const elapsedTime = currentTime - startTime;
-                        
-                        // If we've exceeded the duration, consider it complete
-                        if (elapsedTime >= duration) {
-                            completedTransitions++;
-                            if (completedTransitions === totalTransitions) {
-                                logger.debug("[Scene] All text transitions completed after duration");
-                                resolveTransition();
-                            }
-                        } else {
-                            // Check again in the next frame
-                            requestAnimationFrame(checkTransitionComplete);
-                        }
-                    };
-                    
-                    // Start checking
-                    checkTransitionComplete();
-                });
-                
-                // Wait for transition to complete before resolving
-                await transitionComplete;
-                resolve();
-            }
-        }
-    }
-
-    async fadeAllElements() {
-        logger.debug("Fading all elements");
-        const elements = this.screen.find('div');
-        
-        // If no elements, resolve immediately
-        if (!elements.length) {
-            logger.debug("No elements to fade");
+        this.scenes = scenes || [];
+        if (!this.scenes.length) {
+            logger.warn('[Scene] No scenes to play');
             return;
         }
-
-        // Check if all elements are already at opacity 0
-        const allAlreadyFaded = elements.css('opacity') === '0';
-
-        if (allAlreadyFaded) {
-            logger.debug("All elements already faded out");
-            elements.remove();
-            return;
-        }
-
-        const duration = this.getAdjustedDuration(2000);
-
-        return new Promise(resolve => {
-            // Set up transitions for all elements
-            elements.css({
-                'transition': `opacity ${duration}ms linear`,
-                'opacity': 1
-            });
-
-            // Force a reflow on the first element
-            if (elements[0] && elements[0].offsetHeight !== undefined) {
-                elements[0].offsetHeight;
-            }
-
-            // Start the fade
-            elements.css('opacity', 0);
-
-            // Set up transitionend listener
-            const onTransitionEnd = () => {
-                elements.off('transitionend', onTransitionEnd);
-                elements.remove();
-                resolve();
-            };
-
-            elements.on('transitionend', onTransitionEnd);
-        });
-    }
-
-    createSceneElement(scene) {
-        if (!scene) {
-            logger.error("[Scene] Cannot create element for null scene");
-            return null;
-        }
-
-        logger.debug("[Scene] Creating element");
-        const element = $("<div>").addClass("scene");
-
-        // Add default styling
-        element.css({
-            'white-space': 'pre',
-            'font-family': 'monospace',
-            'line-height': '1.2',
-            'display': 'block'
-        });
-
-        // Set content if it exists
-        if (scene.content) {
-            if (typeof scene.content === 'object' && scene.content.frames) {
-                // Handle animation content
-                logger.debug("[Scene] Starting animation");
-                this.handleAnimation(element, scene.content);
-            } else {
-                // Regular text content
-                element.text(scene.content);
-            }
-        }
-
-        element.appendTo(this.screen);
-        logger.debug("[Scene] Element created and added to screen");
-
-        return element;
-    }
-
-    async handleAudio(audio) {
-        if (!audio || !this.audioHandler) return;
-        
-        const maxRetries = 3;
-        let attempts = 0;
-        
-        while (attempts < maxRetries) {
-            try {
-                logger.debug(`[Audio] Attempting to handle audio (attempt ${attempts + 1}/${maxRetries})`);
-                await this.audioHandler.handleAudio(audio);
-                return;
-            } catch (error) {
-                attempts++;
-                
-                // Log with attempt count
-                logger.error(`[Audio] Error handling audio (attempt ${attempts}/${maxRetries}):`, error);
-
-                // Different handling based on error type
-                if (error instanceof TypeError || error.name === 'TypeError') {
-                    // Configuration/setup errors - don't retry
-                    logger.error('[Audio] Audio configuration error - skipping retries');
-                    break;
-                } else if (error.name === 'NotAllowedError') {
-                    // User hasn't interacted with page yet
-                    logger.warn('[Audio] Audio not allowed yet - user interaction may be needed');
-                    break;
-                } else if (error.name === 'NotSupportedError') {
-                    // Audio format not supported
-                    logger.error('[Audio] Audio format not supported');
-                    break;
-                }
-
-                // For other errors, retry after a delay if we haven't hit max retries
-                if (attempts < maxRetries) {
-                    logger.debug(`[Audio] Retrying in ${attempts * 1000}ms...`);
-                    await new Promise(resolve => setTimeout(resolve, attempts * 1000));
-                }
-            }
-        }
-
-        // If we get here, all retries failed or we broke early
-        if (attempts > 0) {
-            logger.warn(`[Audio] Failed to play audio after ${attempts} attempt(s)`);
-        }
-
-        // Always return, even if audio failed
-        return;
-    }
-
-    async handleArrival(sceneElement, arrival) {
-        if (!arrival) {
-            return;
-        }
-
-        try {
-            // Start audio asynchronously without awaiting
-            if (arrival.audio) {
-                this.handleAudio(arrival.audio, "arrival").catch(error => {
-                    logger.error("[Arrive] Error during audio handling:", error);
-                });
-            }
-            // Start animation first if present
-            if (arrival.animation) {
-                await this.handleAnimation(sceneElement, arrival.animation);
-            }
-
-            // Handle transition
-            if (arrival.transition) {
-                await this.handleTransition(sceneElement, { ...arrival, type: "in" });
-            } else {
-                // If no transition specified, just show the element
-                sceneElement.show().css('opacity', 1);
-            }
-            
-
-        } catch (error) {
-            logger.error("[Arrive] Error during arrival:", error);
-        }
-    }
-
-    async handleAnimation(element, animation) {
-        logger.info("[Animation] Starting animation handler");
-
-        if (!animation.frames || !animation.frames.length) {
-            logger.error("[Animation] Animation frames are missing or empty");
-            return;
-        }
-
-        logger.info(`[Animation] Starting animation with frames: ${animation.frames.length}`);
-        logger.info(`[Animation] Frame length (ms): ${animation.frame_length_ms}`);
-
-        let currentFrame = 0;
-        const totalFrames = animation.frames.length;
-        const frameLength = this.getAdjustedDuration(animation.frame_length_ms);
-
-        // Wait for any ongoing transition to complete
-        await new Promise(resolve => {
-            if (element.css('transition') && element.css('opacity') !== '1') {
-                element.on('transitionend', resolve, { once: true });
-            } else {
-                resolve();
-            }
-        });
-
-        const animate = async (frameIndex) => {
-            try {
-                if (!element.is(':visible')) {
-                    logger.info("[Animation] Stopped - element not visible");
-                    return;
-                }
-                
-                // Clear and update the element content
-                element.empty();
-                const frameContent = $('<div>').text(animation.frames[frameIndex]);
-                element.append(frameContent);
-
-                // Calculate next frame
-                const nextFrame = (frameIndex + 1) % totalFrames;
-
-                // Schedule next frame
-                await new Promise(resolve => setTimeout(resolve, frameLength));
-                animate(nextFrame);
-            } catch (error) {
-                logger.error("[Animation] Error: " + error.toString());
-            }
-        };
-
-        logger.info("[Animation] Starting animation loop");
-        animate(currentFrame);
-    }
-
-    async handleDeparture(sceneElement, departure) {
-        if (!departure) return;
-
-        logger.info(`[Depart] Starting departure with wait_for_audio=${departure.wait_for_audio}`);
-
-        // Create a promise that resolves when all departure actions are complete
-        const departureComplete = new Promise(async (resolve) => {
-            // Start both audio and visual transitions simultaneously
-            const audioPromise = departure.audio ? 
-                this.handleAudio(departure.audio) : 
-                Promise.resolve();
-
-            const visualPromise = departure.transition ? 
-                this.handleTransition(sceneElement, {
-                    ...departure,
-                    type: "out"
-                }) : 
-                Promise.resolve();
-
-            // If wait_for_audio is true, wait for both to complete
-            if (departure.wait_for_audio === true) {
-                logger.info(`[Depart] Waiting for both audio and visual transitions to complete`);
-                await Promise.all([audioPromise, visualPromise]);
-            } else {
-                // Otherwise, just wait for visual transition
-                logger.info(`[Depart] Only waiting for visual transition to complete`);
-                await visualPromise;
-            }
-
-            // Only wait if explicitly set to true (default is false now)
-            if (departure.wait === true) {
-                logger.info(`[Depart] Waiting for additional duration: ${departure.duration || 1000}ms`);
-                await this.sleep(departure.duration || 1000);
-            }
-
-            logger.info(`[Depart] All departure actions complete`);
-            resolve();
-        });
-
-        // Wait for departure to complete
-        await departureComplete;
-        logger.info(`[Depart] Departure complete`);
-    }
-
-    async handleTransition(sceneElement, config) {
-        if (!sceneElement || !config) {
-            logger.warn("[Transition] Called with invalid parameters:", { sceneElement, config });
-            return;
-        }
-
-        logger.debug(`[Transition] Handling transition: ${config.transition}`);
-        
-        switch (config.transition) {
-            case "fade":
-                logger.debug(`[Transition] Fading over ${config.duration || 1000}ms`);
-                return new Promise(resolve => {
-                    const startTime = performance.now();
-                    const duration = this.getAdjustedDuration(config.duration || 1000);
-                    const startOpacity = config.type === "in" ? 0 : 1;
-                    const endOpacity = config.type === "in" ? 1 : 0;
-
-                    // Ensure element is visible and at start opacity
-                    sceneElement.show().css('opacity', startOpacity);
-
-                    // Set up the transition
-                    sceneElement.css({
-                        'transition': `opacity ${duration}ms linear`,
-                        'opacity': startOpacity
-                    });
-
-                    // Force a reflow
-                    sceneElement[0].offsetHeight;
-
-                    // Start the transition
-                    sceneElement.css('opacity', endOpacity);
-
-                    // Set up the transitionend listener
-                    const onTransitionEnd = () => {
-                        sceneElement.off('transitionend', onTransitionEnd);
-                        if (config.type === "out" && config.remove === true) {
-                            sceneElement.remove();
-                        }
-                        const transitionDuration = performance.now() - startTime;
-                        logger.info(`[Transition] ${config.type === "in" ? "Fade in" : "Fade out"} took ${transitionDuration.toFixed(2)}ms`);
-                        resolve();
-                    };
-
-                    sceneElement.on('transitionend', onTransitionEnd);
-                });
-            case "show":
-                logger.debug("[Transition] Showing immediately");
-                sceneElement.show().css('opacity', 1);
-                return Promise.resolve();
-            case "hide":
-                logger.debug("[Transition] Hiding immediately");
-                if (config.type === "out" && config.remove === true) {
-                    sceneElement.remove();
-                } else {
-                    sceneElement.hide();
-                }
-                return Promise.resolve();
-            case "type":
-                if (config.type !== "out") {
-                    logger.debug(`[Transition] Typing with ${config.ms_per_char || 50}ms per character`);
-                    // Get the text from the scene element
-                    const text = sceneElement.text();
-                    if (!text) {
-                        logger.warn("[Transition] No text content to type");
-                        return Promise.resolve();
-                    }
-                    return this.typeText(sceneElement, text, this.getAdjustedDuration(config.ms_per_char || 50), config.show_cursor);
-                } else {
-                    sceneElement.css('opacity', 0);
-                    return Promise.resolve();
-                }
-            case "keep":
-                logger.debug("[Transition] Keeping element as is");
-                return Promise.resolve();
-            default:
-                logger.warn(`[Transition] Unknown transition: ${config.transition}`);
-                if (config.type === "in") {
-                    sceneElement.show().css('opacity', 1);
-                } else {
-                    sceneElement.css('opacity', 0);
-                }
-                return Promise.resolve();
-        }
-    }
-
-    async fadeOutAndRemove(element, duration) {
-        return new Promise(resolve => {
-            element.fadeOut(duration, () => {
-                element.remove();
-                resolve();
-            });
-        });
-    }
-
-    async sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, this.getAdjustedDuration(ms)));
-    }
-
-    async playScenes(scenes, startIndex = 0) {
-        if (!scenes || scenes.length === 0) {
-            logger.warn("[Scene] No scenes to play");
-            return;
-        }
-
-        // Check for audio usage before starting
-        this.audioHandler.checkAudioUsage(scenes);
-
-        this.scenes = scenes;
         this.currentSceneIndex = startIndex;
-        this.isPlaying = true;
+        this.audioHandler.checkAudioUsage(this.scenes);
 
-        while (this.isPlaying) {
-            // If we've reached the end of the scenes
-            if (this.currentSceneIndex >= scenes.length) {
-                if (!this.isRestarting) {
-                    logger.info("[Scene] Reached end of scenes, restarting");
-                    await this.restartScenes(0); // Start from the beginning
-                    this.currentSceneIndex = 0; // Reset index for the new loop
-                    continue; // Continue with the new loop
-                } else {
-                    logger.info("[Scene] Finished playing all scenes");
-                    break; // Exit the loop if we shouldn't loop
+        try {
+            if (reset) await this.resetStage(token);
+
+            for (;;) {
+                if (this.currentSceneIndex >= this.scenes.length) {
+                    logger.info('[Scene] Reached the end, looping');
+                    await this.resetStage(token);
+                    this.currentSceneIndex = 0;
                 }
-            }
-
-            const scene = scenes[this.currentSceneIndex];
-            const sceneComplete = new Promise(resolve => {
-                this.onSceneCompleteCallbacks.set(this.currentSceneIndex, resolve);
-            });
-
-            try {
-                // Process the scene
-                await this.processScene(scene);
-                
-                // Wait for the scene to be marked as complete
-                await sceneComplete;
-                
-                // Add a small delay between scenes
-                await this.sleep(50);
-                
-                // Move to the next scene
-                this.currentSceneIndex++;
-            } catch (error) {
-                logger.error(`[Scene] Error processing scene ${this.currentSceneIndex}:`, error);
+                await this.processScene(this.scenes[this.currentSceneIndex], token);
+                await this.sleep(DEFAULTS.betweenScenesMs, token);
                 this.currentSceneIndex++;
             }
+        } catch (error) {
+            if (!(error instanceof PlaybackCancelled)) throw error;
+            logger.info('[Scene] Playback cancelled');
         }
     }
 
-    async restartScenes(startIndex = this.currentSceneIndex) {
-        if (this.isRestarting) {
-            logger.warn("[Scene] Already restarting scenes, ignoring duplicate restart");
-            return;
-        }
+    // Remember where the story was launched from, so restarts go back there.
+    start(scenes, startIndex = 0) {
+        this.startIndex = startIndex;
+        return this.play(scenes, startIndex);
+    }
 
-        try {
-            this.isRestarting = true;
-            logger.info("[Scene] Restarting scenes");
-            this.stop(); // Stop current playback and clear audio
-            
-            // Reset colors with transition
-            const resetColor = async (element) => {
-                return new Promise(resolve => {
-                    const duration = 2000; // 2 second transition
-                    
-                    // Handle both jQuery and DOM elements
-                    const $element = element.jquery ? element : $(element);
-                    
-                    // First transition to opacity 0
-                    $element.css({
-                        'transition': `opacity ${duration}ms linear`,
-                        'opacity': 0
-                    });
-                    
-                    // Force a reflow
-                    if ($element[0]) {
-                        $element[0].offsetHeight;
-                    }
-                    
-                    // Wait for transition to complete
-                    const onTransitionEnd = () => {
-                        $element.off('transitionend', onTransitionEnd);
-                        
-                        // Remove any elements - compare the underlying DOM elements
-                        if ($element[0] === this.screen[0]) {
-                            this.screen.empty();
-                        } else if ($element[0] === this.theatre[0]) {
-                            this.theatre.find('.scene').remove();
-                        }
-                        
-                        // Clear all styles to inherit from CSS
-                        $element.css({
-                            'background-color': '',
-                            'color': '',
-                            'opacity': '',
-                            'transition': '',
-                            'background-image': ''
-                        });
-                        
-                        resolve();
-                    };
-                    
-                    $element.on('transitionend', onTransitionEnd);
-                });
-            };
-
-            // Reset colors for both screen and theatre
-            await Promise.all([
-                resetColor(this.screen),
-                resetColor(this.theatre)
-            ]);
-            
-            if (this.scenes) {
-                // If audio is allowed, play scenes from current index
-                if (this.audioHandler.isAudioAllowed) {
-                    // Clear any pending audio operations
-                    this.audioHandler.stopAllTracks();
-                    await this.playScenes(this.scenes, startIndex);
-                } else {
-                    // If audio is not allowed, queue the first scene's audio
-                    const firstScene = this.scenes[0];
-                    if (firstScene && firstScene.arrive && firstScene.arrive.audio) {
-                        this.audioHandler.handleAudio(firstScene.arrive.audio);
-                    }
-                    await this.playScenes(this.scenes, startIndex);
-                }
-            }
-        } finally {
-            this.isRestarting = false;
-        }
+    restart() {
+        return this.play(this.scenes, this.startIndex, { reset: true });
     }
 
     stop() {
-        logger.info("[Scene] Stopping scene playback");
-        this.isPlaying = false;
+        this.token.cancel();
+        this.stopAnimations();
         this.audioHandler.stopAllTracks();
     }
 
-    async typeText(element, text, msPerChar, showCursor = false) {
-        if (!element || !text) {
-            logger.warn("typeText called with invalid parameters:", { element, text });
+    // Fade everything out and put the stage back to its stylesheet defaults.
+    async resetStage(token = this.token) {
+        const ms = this.scale(DEFAULTS.resetMs);
+        const stage = [this.screen, this.theatre];
+
+        this.audioHandler.fadeOutAllTracks(ms);
+        stage.forEach(el => el.css({ transition: `opacity ${ms}ms linear`, opacity: 0 }));
+        await this.delay(ms, token);
+
+        this.stopAnimations();
+        this.audioHandler.stopAllTracks();
+        this.screen.empty();
+        stage.forEach(el => el.css({
+            background: '', // set by color target "both"
+            'background-color': '',
+            'background-image': '',
+            color: '',
+            opacity: '',
+            transition: '',
+        }));
+    }
+
+    // ---- Scenes -----------------------------------------------------------
+
+    // Run one scene to completion. Errors are logged and swallowed so a bad
+    // scene never stalls the story; only cancellation propagates.
+    async processScene(scene, token = this.token) {
+        if (!scene) {
+            logger.error('[Scene] Scene is null or undefined');
             return;
         }
+        token.check();
+        const label = `[Scene ${this.currentSceneIndex}]`;
+        const startedAt = performance.now();
 
-        const startTime = Date.now();
-        logger.debug(`Starting to type text: "${text}" with ${msPerChar}ms per character`);
-        element.show();
-        
-        // Convert text to string and split into characters
-        const characters = String(text).split('');
-        
-        // Create cursor element if cursor option is enabled
-        let cursor;
-        if (showCursor) {
-            cursor = $('<span>').addClass('typing-cursor').text('|');
-            element.append(cursor);
-        }
-        
-        // Clear any existing content
-        element.empty();
-        
-        for (const character of characters) {
-            // Remove cursor before adding character if it exists
-            if (cursor) {
-                cursor.remove();
-            }
-            element.append(character);
-            // Add cursor back after character if it exists
-            if (cursor) {
-                element.append(cursor);
-            }
-            
-            logger.debug(`Typed character: ${character}`);
-            await this.sleep(msPerChar);
-        }
-        
-        // Remove cursor when done typing if it exists
-        if (cursor) {
-            cursor.remove();
-        }
-        
-        const endTime = Date.now();
-        logger.debug(`Finished typing text in ${endTime - startTime}ms`);
-    }
-
-    async playScene(scene) {
         try {
-            // Create the scene element first
-            const sceneElement = this.createSceneElement(scene);
-
-            // Handle arrival
-            if (scene.arrive) {
-                await this.handleArrival(sceneElement, scene.arrive);
-            }
-
-            // Handle dwell
-            if (scene.dwell) {
-                await this.sleep(scene.dwell);
-            }
-
-            // Handle departure
-            if (scene.depart) {
-                await this.handleDeparture(sceneElement, scene.depart);
-            }
-
-            // Handle directives
             if (scene.directive) {
-                await this.handleDirective(scene);
+                await this.runDirective(scene, token);
+            } else {
+                const element = this.createSceneElement(scene);
+                await this.arrive(element, scene.arrive, token);
+                if (scene.dwell) await this.sleep(scene.dwell, token);
+                await this.depart(element, scene.depart, token);
             }
+            if (scene.directive && scene.dwell) await this.sleep(scene.dwell, token);
         } catch (error) {
-            logger.error(`Error in playScene: ${error.message}`);
-            throw error;
+            if (error instanceof PlaybackCancelled) throw error;
+            logger.error(`${label} Error:`, error);
+        }
+        logger.debug(`${label} took ${(performance.now() - startedAt).toFixed(0)}ms`);
+    }
+
+    createSceneElement(scene) {
+        const element = $('<div>').addClass('scene');
+        const content = scene.content;
+
+        if (content && typeof content === 'object' && content.frames) {
+            this.startAnimation(element, content);
+        } else if (content !== undefined && content !== null) {
+            element.text(content);
+        }
+        return element.appendTo(this.screen);
+    }
+
+    async arrive(element, config, token) {
+        if (!config) return;
+        if (config.audio) this.playAudio(config.audio, token);
+
+        switch (config.transition) {
+            case 'fade':
+                await this.fade(element, 1, config.duration, token, 0);
+                break;
+            case 'type':
+                await this.typeText(element, element.text(), config.ms_per_char, config.show_cursor, token);
+                break;
+            case 'keep':
+                break;
+            case 'hide':
+                element.hide();
+                break;
+            case undefined:
+            case 'show':
+                element.show();
+                break;
+            default:
+                logger.warn(`[Scene] Unknown arrive transition: ${config.transition}`);
+                element.show();
         }
     }
 
-    async handleFadeAllAudio(scene, resolve) {
-        logger.debug(`Fading all audio tracks over ${scene.duration || 2000}ms`);
-        try {
-            const trackIds = this.audioHandler.getAllTrackIds();
-            if (trackIds.length === 0) {
-                logger.debug("No audio tracks to fade out");
-                resolve();
+    async depart(element, config, token) {
+        if (!config) return;
+        const audio = config.audio ? this.playAudio(config.audio, token) : Promise.resolve();
+
+        let visual;
+        switch (config.transition) {
+            case 'fade':
+            case 'type': // there's no "untyping"; departing a typed scene fades it
+                visual = this.fade(element, 0, config.duration, token).then(() => this.stopAnimation(element));
+                break;
+            case 'hide':
+                this.stopAnimation(element);
+                element.hide();
+                visual = Promise.resolve();
+                break;
+            case 'show':
+            case 'keep':
+            case undefined:
+                visual = Promise.resolve();
+                break;
+            default:
+                logger.warn(`[Scene] Unknown depart transition: ${config.transition}`);
+                visual = Promise.resolve();
+        }
+
+        await (config.wait_for_audio ? Promise.all([audio, visual]) : visual);
+        if (config.remove) this.removeElement(element);
+        if (config.wait) await this.sleep(config.duration ?? DEFAULTS.fadeMs, token);
+    }
+
+    // Fade opacity to `to`, optionally starting from `from`.
+    async fade(element, to, duration = DEFAULTS.fadeMs, token = this.token, from = undefined) {
+        const ms = this.scale(duration);
+        element.show();
+        if (from !== undefined) {
+            element.css({ transition: 'none', opacity: from });
+            void element[0].offsetHeight; // force a reflow so the start value applies
+        }
+        element.css({ transition: `opacity ${ms}ms linear`, opacity: to });
+        await this.delay(ms, token);
+    }
+
+    async typeText(element, text, msPerChar = DEFAULTS.msPerChar, showCursor = false, token = this.token) {
+        if (!text) return;
+        const typed = document.createTextNode('');
+        element.empty().show().append(typed);
+        const cursor = showCursor ? $('<span>').addClass('typing-cursor').text('|').appendTo(element) : null;
+
+        // Array.from splits by code point, so emoji aren't torn in half
+        for (const character of Array.from(String(text))) {
+            typed.data += character;
+            await this.sleep(msPerChar, token);
+        }
+        if (cursor) cursor.remove();
+    }
+
+    // ---- Animations -------------------------------------------------------
+
+    startAnimation(element, { frames, frame_length_ms = DEFAULTS.frameMs }) {
+        if (!frames || !frames.length) {
+            logger.warn('[Animation] No frames to animate');
+            return;
+        }
+        let frame = 0;
+        element.text(frames[frame]);
+        if (frames.length === 1) return;
+
+        const id = setInterval(() => {
+            if (!element[0].isConnected) {
+                this.stopAnimation(element);
                 return;
             }
+            frame = (frame + 1) % frames.length;
+            element.text(frames[frame]);
+        }, this.scale(frame_length_ms));
+        this.animations.set(element[0], id);
+    }
 
-            // Start fading all tracks
-            for (const trackId of trackIds) {
-                this.audioHandler.fadeOutTrack(trackId, scene.duration || 2000);
+    stopAnimation(element) {
+        const id = this.animations.get(element[0]);
+        if (id !== undefined) {
+            clearInterval(id);
+            this.animations.delete(element[0]);
+        }
+    }
+
+    stopAnimations() {
+        this.animations.forEach(id => clearInterval(id));
+        this.animations.clear();
+    }
+
+    removeElement(element) {
+        this.stopAnimation(element);
+        element.remove();
+    }
+
+    // ---- Directives -------------------------------------------------------
+
+    async runDirective(scene, token) {
+        logger.debug(`[Scene] Directive: ${scene.directive}`);
+        switch (scene.directive) {
+            case 'clear':
+                this.stopAnimations();
+                this.screen.empty();
+                break;
+            case 'blankline':
+                $('<div>').addClass('blankline').appendTo(this.screen);
+                break;
+            case 'fade_all':
+                await this.fadeAll(scene.duration, token);
+                break;
+            case 'color':
+                await this.changeColor(scene, token);
+                break;
+            case 'stop_audio':
+                if (scene.trackId) this.audioHandler.stopTrack(scene.trackId);
+                else this.audioHandler.stopAllTracks();
+                break;
+            case 'fade_audio': {
+                if (!scene.trackId) {
+                    logger.warn('[Scene] fade_audio needs a trackId');
+                    break;
+                }
+                const fading = this.audioHandler.fadeOutTrack(scene.trackId, this.scale(scene.duration ?? DEFAULTS.audioFadeMs));
+                if (scene.wait_for_fade) await fading;
+                break;
             }
+            case 'fade_all_audio':
+                await this.audioHandler.fadeOutAllTracks(this.scale(scene.duration ?? DEFAULTS.audioFadeMs));
+                break;
+            default:
+                logger.warn(`[Scene] Unknown directive: ${scene.directive}`);
+        }
+    }
 
-            // Always wait for the fade to complete
-            const fadeDuration = scene.duration || 2000;
-            logger.debug(`Waiting for ${fadeDuration}ms for fade to complete`);
-            
-            // Add a small buffer to ensure the fade is complete
-            await new Promise(resolve => setTimeout(resolve, fadeDuration + 100));
-            
-            // Ensure all tracks are stopped
-            for (const trackId of trackIds) {
-                this.audioHandler.stopTrack(trackId);
+    async fadeAll(duration = DEFAULTS.fadeAllMs, token) {
+        const elements = this.screen.children();
+        if (!elements.length) return;
+        const ms = this.scale(duration);
+        elements.css({ transition: `opacity ${ms}ms linear`, opacity: 0 });
+        await this.delay(ms, token);
+        elements.each((_, el) => this.removeElement($(el)));
+    }
+
+    // target: "screen" (default) | "background" | "both"
+    async changeColor(scene, token) {
+        const ms = this.scale(scene.duration ?? DEFAULTS.colorMs);
+        let backgroundTargets = [this.screen];
+        let textTargets = [this.screen];
+        if (scene.target === 'background') {
+            backgroundTargets = textTargets = [this.theatre];
+        } else if (scene.target === 'both') {
+            // Colour the theatre and let it show through the screen
+            this.screen.css('background', 'transparent');
+            backgroundTargets = [this.theatre];
+            textTargets = [this.theatre, this.screen];
+        }
+
+        // Group changes per element: each element has a single `transition`
+        // property, so setting it once per CSS property would cancel the others.
+        const changes = new Map(); // DOM element -> { $el, props }
+        const add = (targets, property, value) => targets.forEach(target => {
+            if (!changes.has(target[0])) changes.set(target[0], { target, props: {} });
+            changes.get(target[0]).props[property] = value;
+        });
+        if (scene.background) add(backgroundTargets, 'background-color', scene.background);
+        if (scene.text) add(textTargets, 'color', scene.text);
+        changes.forEach(({ target, props }) => this.transitionProperties(target, props, ms));
+
+        // async: true lets the story carry on while colours change
+        if (!scene.async) await this.delay(ms, token);
+    }
+
+    transitionProperties(target, props, ms) {
+        const names = Object.keys(props);
+        // Pin current computed values so the transition has a start point
+        const current = { transition: 'none' };
+        names.forEach(name => { current[name] = target.css(name); });
+        target.css(current);
+        void target[0].offsetHeight;
+        target.css({ transition: names.map(name => `${name} ${ms}ms linear`).join(', '), ...props });
+    }
+
+    // ---- Audio ------------------------------------------------------------
+
+    // An audio cue either starts a track or, if it has `fadeOut`, fades one out.
+    // Resolves when the track has started (or the fade has finished). Never throws.
+    async playAudio(audio, token = this.token) {
+        const { trackId, fadeOut, fadeIn, ...options } = audio;
+        try {
+            if (fadeOut) {
+                await this.audioHandler.fadeOutTrack(trackId, this.scale(fadeOut));
+            } else {
+                await this.audioHandler.play(trackId, {
+                    ...options,
+                    fadeIn: fadeIn ? this.scale(fadeIn) : 0,
+                }, () => token.cancelled);
             }
         } catch (error) {
-            logger.error("Error during fade_all_audio:", error);
+            logger.error(`[Audio] Error with track ${trackId}:`, error);
         }
-        resolve();
     }
 }
 
-// Export the SceneHandler class in a way that works in both browser and Node.js
+SceneHandler.DEFAULTS = DEFAULTS;
+SceneHandler.PlaybackCancelled = PlaybackCancelled;
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = SceneHandler;
 }

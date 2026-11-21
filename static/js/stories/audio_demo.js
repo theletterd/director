@@ -96,7 +96,7 @@ const scenes = [
                 volume: 1.5,
                 offset: 3000,
                 fadeIn: 2000,
-                pan: -1.0 // happening on the right
+                pan: -1.0 // hard left
             }
         },
         dwell: 4000,
@@ -132,7 +132,7 @@ const scenes = [
         }
     },
 
-    // Scene 6: Stop footsteps immediately
+    // Scene 6: Fade out the footsteps
     {
         directive: "fade_audio",
         trackId: "footsteps",

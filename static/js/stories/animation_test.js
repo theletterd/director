@@ -37,7 +37,7 @@ const test_frames = [
 ];
 
 // Single test scene with animation
-scenes = [
+const scenes = [
     {
         content: {
             frames: test_frames,
@@ -52,4 +52,6 @@ scenes = [
             remove: true
         }
     }
-]; 
+];
+
+window.scenes = scenes;

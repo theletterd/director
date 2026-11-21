@@ -1,4 +1,4 @@
-scenes = [
+const scenes = [
 	{
 		content: "Hey buddy, you ok?",
 		arrive: {
@@ -50,3 +50,5 @@ scenes = [
 		}
 	}
 ];
+
+window.scenes = scenes;

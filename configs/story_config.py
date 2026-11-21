@@ -1,4 +1,6 @@
-# Story configurations
+# Story configurations.
+# Required: title, js (file in static/js/stories), description.
+# Optional: css (file in static/css/stories), screen_class (class added to #screen).
 STORY_CONFIG = {
      'demo': {
         'title': 'Demo',
@@ -8,7 +10,8 @@ STORY_CONFIG = {
    'dream': {
         'title': 'Dream Story',
         'js': 'scenes.js',
-        'description': 'A dream sequence story'
+        'description': 'A dream sequence story',
+        'css': 'dream.css'
     },
     'story2': {
         'title': 'Story 2',
@@ -18,8 +21,7 @@ STORY_CONFIG = {
     'audio_demo': {
         'title': 'Audio Demo',
         'js': 'audio_demo.js',
-        'description': 'Demonstration of audio features',
-        'needs_audio': True
+        'description': 'Demonstration of audio features'
     },
     'animation_test': {
         'title': 'Animation Test',
@@ -36,7 +38,7 @@ STORY_CONFIG = {
     'gradient_demo': {
         'title': 'Gradient Demo',
         'js': 'gradient-demo.js',
-        'description': 'Demonstration of background color and gradient transitions',
+        'description': 'WORK IN PROGRESS: Demonstration of background color and gradient transitions',
         'screen_class': 'gradient-demo'
     }
-} 
+}

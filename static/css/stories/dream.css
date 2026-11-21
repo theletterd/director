@@ -1,0 +1,10 @@
+#backdrop {
+    background-blend-mode: multiply; /* or overlay/soft-light */
+    background-size: auto;
+    background-repeat: repeat;
+    background-image: url('/static/img/paper-fibers.png');
+
+}
+#screen {
+    background-color: #ffffff00;
+}

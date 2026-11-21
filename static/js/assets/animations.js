@@ -406,3 +406,14 @@ $$ |  $$ |$$       |    $$ |    \n\
 $$/   $$/ $$$$$$$$/     $$/     ",
 
 ]
+
+identity_unconfirmed_frames = [
+"\n\                            \n\
+      (•_•)                     \n\
+     <)   )╯ Identity: Undefined\n\
+     /                          \n\ ",
+ "\n\                            \n\
+      (•_•)                     \n\
+     <)   )/ Identity: Undefined\n\
+     /                          \n\ ",    
+]

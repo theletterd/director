@@ -1,4 +1,4 @@
-var scenes = [
+const scenes = [
     {
         content: "Now let's play with colours!",
         arrive: {
@@ -73,25 +73,36 @@ var scenes = [
         directive: "fade_all"
     },
     {
-        directive: "color",
-        target: "both",
-        background: "radial-gradient(circle at center, #FFFFFF 0%, #000000 100%)",
-        duration: 3000,
-        async: false
-    },
-    {
-        content: "TYPINGGGGGGG",
+        content: "Now we'll fade the screen to green, and this text to white asynchronously.",
         arrive: {
             transition: "type",
             ms_per_char: 50
         },
-        dwell: 20000
+        dwell: 2000
     },
     {
         directive: "color",
         target: "screen",
-        background: "radial-gradient(circle at center,rgb(192, 41, 41) 0%,rgb(187, 168, 168) 100%)",
+        background: "green",
+        text: "white",
+        duration: 3000,
+        async: true
+    },
+    {
+        content: "TYPINGGGGGGGGGGGGG SEE HOW THE COLOURS CHANGE",
+        arrive: {
+            transition: "type",
+            ms_per_char: 50
+        },
+        dwell: 5000
+    },
+    {
+        directive: "color",
+        target: "screen",
+        background: "#C02929",
         duration: 3000,
         async: false
-    },
+    }
 ];
+
+window.scenes = scenes;

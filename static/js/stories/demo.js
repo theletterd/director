@@ -1,4 +1,4 @@
-var scenes = [
+const scenes = [
 	{
 		content: story_director,
 		arrive: {
@@ -737,3 +737,5 @@ which defines the frames, and the number of milliseconds per frame.\n\ne.g.:",
 	},
 	{directive: "clear"}
 ];
+
+window.scenes = scenes;

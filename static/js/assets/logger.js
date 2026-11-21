@@ -48,5 +48,4 @@ const logger = new Logger('error');
 // Export the logger
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = logger;
-} 
-window.logger = new Logger('debug'); 
+}

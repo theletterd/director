@@ -1,4 +1,4 @@
-var scenes = [
+const scenes = [
 	{
 		content: {
 			frames: mountain_frames,
@@ -222,3 +222,5 @@ var scenes = [
 	},
 	{directive: "fade_all"},
 ];
+
+window.scenes = scenes;

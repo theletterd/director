@@ -26,7 +26,6 @@ clean:
 	find . -type f -name "*.pyd" -delete
 	find . -type f -name ".DS_Store" -delete
 	rm -rf node_modules
-	rm -f package-lock.json
 
 # Run tests
 test: test-python test-npm

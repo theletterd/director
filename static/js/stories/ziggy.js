@@ -30,7 +30,10 @@ const scenes = [
       depart: { transition: "keep", duration: 1000 }
     },
     {
-      content: "\n\n      (•_•)\n     <)   )╯ Identity: Undefined\n     /    \n",
+      content: {
+        frames: identity_unconfirmed_frames,
+        frame_length_ms: 500
+      },
       arrive: { transition: "fade", duration: 800 },
       dwell: 2500,
       depart: { transition: "keep", duration: 800 }

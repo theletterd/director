@@ -1,355 +1,177 @@
 # Director
 
-A JavaScript-based scene director system for creating interactive, animated, and audio-rich presentations. Perfect for storytelling, tutorials, or any content that needs precise timing and transitions.
+A small engine for timed, animated, audio-rich text stories in the browser. A story is a list of declarative scenes: text that types itself out, ASCII-art animations, fades, colour changes and layered sound. A Flask app lists the stories and serves them.
 
-## Features
+## Running it
 
-- **Scene Management**: Create and sequence scenes with precise timing
-- **Rich Transitions**: Fade, typewriter, and custom animations
-- **Audio Support**: Multi-track audio with looping, fading, and layering
-- **Animation Support**: Frame-based animations with custom timing
-- **Extensible**: Easy to add new transition types and effects
-
-## Installation
-
-1. Initialize the project:
 ```bash
-npm init -y
+make setup     # Python venv + npm install
+make run       # http://localhost:5000
 ```
 
-2. Install dependencies:
+`PORT=5050 make run` picks another port (macOS often has AirPlay on 5000). For production, `make run-gunicorn` uses `gunicorn.conf.py` (binds 127.0.0.1:8000); set `FLASK_DEBUG=0` to turn debug mode off.
+
+### URL options
+
+Add these to any story URL while authoring:
+
+| Option | Effect |
+|---|---|
+| `?start=N` | Start at scene N (0-based). Restarts also return here. |
+| `?speed=X` | Play X times faster, e.g. `?speed=4`. Applies to every duration, including audio fades. |
+| `?debug=1`…`3` | Log level: 1 info, 2 warn, 3 debug. Errors always log. |
+
+### Tests
+
 ```bash
-npm install
+make test      # pytest + jest
 ```
 
-This will create a `node_modules` directory and install:
-- jQuery (runtime dependency)
-- Jest (testing framework)
-- JSDOM (browser environment simulation)
+## Adding a story
 
-### Development Setup
+1. Write `static/js/stories/my-story.js`:
+   ```javascript
+   const scenes = [
+       { content: "Hello, world", arrive: { transition: "type" }, dwell: 2000 },
+   ];
 
-1. Install development dependencies:
-```bash
-npm install --save-dev jest jest-environment-jsdom
-```
+   window.scenes = scenes;
+   ```
+2. Register it in `configs/story_config.py`:
+   ```python
+   'my_story': {
+       'title': 'My Story',
+       'js': 'my-story.js',
+       'description': 'Shown on the index page',
+       'css': 'my-story.css',          # optional, from static/css/stories/
+       'screen_class': 'my-story',     # optional, class added to #screen
+   },
+   ```
 
-2. Run tests:
-```bash
-npm test          # Run tests once
-npm test -- --watch  # Run tests in watch mode
-```
+Stories loop forever: after the last scene the stage fades out, resets, and starts again.
 
-## Project Structure
+## Scenes
 
-```
-director/
-├── node_modules/     # Dependencies
-├── package.json      # Dependencies and scripts
-├── jest.setup.js     # Test environment configuration
-├── tests/            # Test files
-├── director.js       # Main director class
-├── sceneHandler.js   # Scene management
-├── audioHandler.js   # Audio management
-└── logger.js         # Logging utility
-```
+Each scene is either a **content scene** or a **directive**. All durations are in milliseconds.
 
-## Basic Usage
+### Content scenes
 
-1. Include the required files in your HTML:
-```html
-<script src="jquery-3.3.1.min.js"></script>
-<script src="logger.js"></script>
-<script src="audioHandler.js"></script>
-<script src="sceneHandler.js"></script>
-<script src="animations.js"></script>
-<script src="your-scenes.js"></script>
-<script src="director.js"></script>
-```
-
-2. Define your scenes in a JavaScript file:
 ```javascript
-const scenes = [
-    {
-        content: "Hello, World!",
-        arrive: {
-            transition: "type",
-            ms_per_char: 100
-        },
-        dwell: 2000,
-        depart: {
-            transition: "fade",
-            duration: 1000
-        }
-    }
-];
+{
+    content: "Text to show",      // or { frames: [...], frame_length_ms: 100 } for animation
+    arrive: { transition: "type", ms_per_char: 50 },
+    dwell: 2000,                  // pause after arriving
+    depart: { transition: "fade", duration: 1000, remove: true }
+}
 ```
 
-## Scene Configuration
+Each scene is its own line on the screen, with whitespace preserved, so ASCII art works. Scenes stay on screen after departing (just invisible after a fade) unless `remove: true` is set or a `clear` / `fade_all` directive runs.
 
-### Basic Scene Properties
+#### `arrive` transitions
 
-- `content`: The text content, or animation frames to display
-- `arrive`: Configuration for how the scene appears
-- `dwell`: How long to show the scene (in milliseconds)
-- `depart`: Configuration for how the scene disappears
-- `directive`: Special scene commands (see below)
+| Transition | Options | Effect |
+|---|---|---|
+| `show` (default) | | Appear immediately |
+| `fade` | `duration` (1000) | Fade in |
+| `type` | `ms_per_char` (50), `show_cursor` | Typewriter effect |
+| `keep` | | Do nothing |
+| `hide` | | Start hidden |
 
-### Transitions
+#### `depart` transitions
 
-Available transitions in `arrive` and `depart`:
+| Transition | Options | Effect |
+|---|---|---|
+| `keep` (default) | | Leave it showing |
+| `fade` | `duration` (1000) | Fade out |
+| `type` | `duration` (1000) | Same as `fade` |
+| `hide` | | Disappear immediately |
 
-- `fade`: Smooth fade in/out
-  ```javascript
-  {
-      transition: "fade",
-      duration: 1000,  // milliseconds
-      wait_for_fade: true  // optional, wait for fade to complete
-  }
-  ```
-- `type`: Typewriter effect
-  ```javascript
-  {
-      transition: "type",
-      ms_per_char: 50,  // milliseconds per character
-      show_cursor: true  // optional, show a blinking cursor while typing
-  }
-  ```
-  Note: In departure phase, type transition simply fades out the text.
-- `show`: Immediate appearance
-  ```javascript
-  {
-      transition: "show"
-  }
-  ```
-- `hide`: Immediate disappearance
-  ```javascript
-  {
-      transition: "hide",
-      remove: true  // optional, remove element from DOM
-  }
-  ```
-- `keep`: Keep element visible
-  ```javascript
-  {
-      transition: "keep"
-  }
-  ```
+`depart` also accepts:
+- `remove: true`: take the element out of the page afterwards.
+- `wait: true`: pause for another `duration` ms after the transition.
+- `wait_for_audio: true`: don't finish until the departure's audio cue (usually a fade-out) has finished.
+
+#### Animations
+
+```javascript
+{
+    content: { frames: ["(•_•)", "( •_•)>⌐■-■", "(⌐■_■)"], frame_length_ms: 500 },
+    arrive: { transition: "fade", duration: 500 },
+    dwell: 3000,
+    depart: { transition: "fade", duration: 500, remove: true }
+}
+```
+
+Frames loop until the scene fades out, hides, is removed or is cleared. Shared frame sets live in `static/js/assets/animations.js`.
+
+### Audio cues
+
+`arrive` and `depart` can each carry an `audio` cue. Tracks are named in `static/js/assets/audio_library.js`:
+
+```javascript
+const audioLibrary = {
+    owl: { url: "/static/sound_effects/owl.mp3", description: "Owl hooting" },
+};
+```
+
+A cue **starts** a track:
+
+```javascript
+audio: {
+    trackId: "owl",
+    volume: 0.5,     // default 1
+    loop: true,      // default false
+    fadeIn: 1000,    // ms
+    pan: -0.8,       // -1 left … 1 right
+    offset: 3000     // start this many ms into the file
+}
+```
+
+…or, if it has `fadeOut`, **fades out** a playing track:
+
+```javascript
+audio: { trackId: "owl", fadeOut: 2000 }
+```
+
+Starting a track that is already playing restarts it. Browsers block audio until the reader clicks something, so stories that use audio show an "Enable Audio" button. Clicking it restarts the story with sound.
 
 ### Directives
 
-Special scene commands that control the presentation:
+| Directive | Options | Effect |
+|---|---|---|
+| `clear` | | Empty the screen |
+| `blankline` | | Add an empty line |
+| `fade_all` | `duration` (2000) | Fade out and remove everything on screen |
+| `color` | see below | Change background and/or text colour |
+| `stop_audio` | `trackId` (optional) | Stop one track, or all |
+| `fade_audio` | `trackId`, `duration` (2000), `wait_for_fade` | Fade out one track |
+| `fade_all_audio` | `duration` (2000) | Fade out every track, then continue |
 
-- `clear`: Clear the screen
-  ```javascript
-  {
-      directive: "clear"
-  }
-  ```
-- `blankline`: Add a blank line
-  ```javascript
-  {
-      directive: "blankline"
-  }
-  ```
-- `fade_all`: Fade out all elements on screen
-  ```javascript
-  {
-      directive: "fade_all"
-  }
-  ```
-- `background_color`: Smoothly transition the background color
-  ```javascript
-  {
-      directive: "background_color",
-      color: "#ff0000",  // Any valid CSS color
-      duration: 2000,    // optional, milliseconds (default: 2000)
-      target: "#myElement"  // optional, CSS selector (default: body)
-  }
-  ```
-  For gradient backgrounds:
-  ```javascript
-  {
-      directive: "background_color",
-      gradient: {
-          type: "linear",  // or "radial"
-          direction: "to right",  // gradient direction
-          stops: [
-              { 
-                  color: "#ff0000", 
-                  position: "0%",
-                  duration: 1000  // optional, per-stop duration
-              },
-              { 
-                  color: "#00ff00", 
-                  position: "50%",
-                  duration: 2000  // optional, per-stop duration
-              },
-              { 
-                  color: "#0000ff", 
-                  position: "100%",
-                  duration: 3000  // optional, per-stop duration
-              }
-          ],
-          async: true  // optional, transitions each stop independently
-      },
-      duration: 2000,  // optional, default duration for stops
-      target: "#myElement"  // optional
-  }
-  ```
-- `stop_audio`: Stop all audio tracks
-  ```javascript
-  {
-      directive: "stop_audio"
-  }
-  ```
-- `fade_audio`: Fade out a specific audio track
-  ```javascript
-  {
-      directive: "fade_audio",
-      trackId: "background",
-      duration: 2000,  // milliseconds
-      wait_for_fade: true  // optional, wait for fade to complete
-  }
-  ```
-- `fade_all_audio`: Fade out all audio tracks
-  ```javascript
-  {
-      directive: "fade_all_audio",
-      duration: 2000  // milliseconds
-  }
-  ```
-
-### Audio Configuration
-
-Audio can be configured in both `arrive` and `depart`:
+Any directive can also have a `dwell`.
 
 ```javascript
 {
-    audio: {
-        url: "path/to/audio.mp3",
-        volume: 0.8,
-        loop: true,
-        fadeIn: 1000,  // milliseconds
-        fadeOut: 1000,  // milliseconds
-        wait_for_audio: true  // optional, wait for audio to complete
-    }
+    directive: "color",
+    target: "screen",       // "screen" (default), "background" (behind the screen) or "both"
+    background: "#000",     // any CSS colour
+    text: "#0f0",           // optional
+    duration: 2000,
+    async: false            // true: carry on while the colour changes
 }
 ```
 
-### Animation Configuration
+## How it fits together
 
-Frame-based animations can be added to any scene:
-
-```javascript
-{
-    content: {
-        frames: ["frame1", "frame2", "frame3"],
-        frame_length_ms: 100  // milliseconds per frame
-    }
-}
-```
-
-## Example
-
-Here's a complete example showing various features:
-
-```javascript
-const scenes = [
-    {
-        content: "Welcome to the presentation",
-        arrive: {
-            transition: "type",
-            ms_per_char: 50,
-            audio: {
-                url: "welcome.mp3",
-                volume: 0.8
-            }
-        },
-        dwell: 3000,
-        depart: {
-            transition: "fade",
-            duration: 1000
-        }
-    },
-    {
-        directive: "blankline"
-    },
-    {
-        content: {
-            frames: ["(•_•)", "( •_•)>⌐■-■", "(⌐■_■)"],
-            frame_length_ms: 500
-        }
-        arrive: {
-            transition: "fade",
-            duration: 500
-        },
-        dwell: 2000,
-        depart: {
-            transition: "fade",
-            duration: 500
-        }
-    }
-];
-```
-
-## Testing
-
-The project includes a comprehensive test suite using Jest. Run tests with:
-
-```bash
-npm test
-```
-
-Tests cover:
-- Scene element creation
-- Animation handling
-- Audio management
-- Scene transitions
-- Directives
-- Error handling
-
-## Browser Support
-
-- Modern browsers with Web Audio API support
-- jQuery 3.3.1 or later
+| File | Role |
+|---|---|
+| `app.py`, `configs/` | Flask app and story registry |
+| `templates/story.html` | Loads jQuery, the engine, the story, then `director.js` |
+| `static/js/assets/director.js` | Reads URL options, starts playback |
+| `static/js/assets/sceneHandler.js` | Plays scenes: transitions, directives, looping, cancellation |
+| `static/js/assets/audioHandler.js` | Web Audio playback, fades, the enable-audio button |
+| `static/js/assets/logger.js` | Level-filtered console logging |
+| `static/js/stories/` | The stories |
 
 ## License
 
-MIT License
-
-## Setup
-
-1. Install Python dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-2. Install Node.js dependencies (for development):
-```bash
-npm install
-```
-
-## Running the Application
-
-### Development Mode
-```bash
-python app.py
-```
-
-The application will be available at `http://localhost:5000`
-
-### Production Mode (with Gunicorn)
-```bash
-gunicorn -c gunicorn.conf.py app:app
-```
-
-Or using the Makefile:
-```bash
-make run-gunicorn
-```
-
-The application will be available at `http://localhost:5000`
-
-### Testing
-```
+MIT
