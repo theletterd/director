@@ -1,5 +1,6 @@
 // Entry point: reads URL options and plays window.scenes (set by the story file).
 //
+//   ?chapter=C start at chapter C: a number (1-based) or its id ("the-owl")
 //   ?start=N   start from scene N (0-based)
 //   ?speed=X   play X times faster (e.g. 4 while authoring)
 //   ?debug=1-3 log level: 1 info, 2 warn, 3 debug (errors are always logged)
@@ -13,6 +14,13 @@ class Director {
 	}
 
 	getStartSceneIndex() {
+		const chapterKey = this.params.get('chapter');
+		if (chapterKey !== null) {
+			const chapter = SceneHandler.findChapter(SceneHandler.findChapters(this.scenes), chapterKey);
+			if (chapter) return chapter.index;
+			logger.warn(`Unknown chapter: ${chapterKey}`);
+		}
+
 		const start = this.params.get('start');
 		if (start === null) return 0;
 		const index = parseInt(start, 10);
@@ -38,8 +46,11 @@ class Director {
 		logger.setLevel(this.getLogLevel());
 		this.sceneHandler.setSpeedMultiplier(this.getSpeedMultiplier());
 		logger.info('Director started');
-		return this.sceneHandler.start(this.scenes, this.getStartSceneIndex())
+		const playing = this.sceneHandler.start(this.scenes, this.getStartSceneIndex())
 			.catch(error => logger.error('Fatal error in director:', error));
+		// start() has registered the chapters synchronously, so the menu can be built
+		this.chapterNavigator = new ChapterNavigator(this.sceneHandler).attach();
+		return playing;
 	}
 
 	stop() {

@@ -37,9 +37,14 @@ audio: { trackId: "owl", fadeOut: 2000 }                                        
 { directive: "stop_audio", trackId: "owl" }          // omit trackId to stop everything
 { directive: "fade_audio", trackId: "owl", duration: 2000, wait_for_fade: true }
 { directive: "fade_all_audio", duration: 2000 }
+{ directive: "chapter", title: "The owl", card: true }   // chapter start; card shows the title on screen
 ```
 
 Any directive may also have `dwell`.
+
+## Chapters
+
+Put a `chapter` directive at the start of each section. Readers get a chapter menu, ←/→ keys and `?chapter=N` links. A jump restores the latest `color` directives and any looping audio, so a chapter should still make sense if someone starts reading there.
 
 ## Example
 

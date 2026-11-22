@@ -9,8 +9,25 @@ const DEFAULTS = {
     fadeAllMs: 2000,       // fade_all directive
     audioFadeMs: 2000,     // fade_audio / fade_all_audio directives
     resetMs: 2000,         // fade-out between loops / on restart
+    jumpMs: 600,           // fade-out when jumping to a chapter
+    restoreFadeInMs: 1500, // fade-in for background audio restored by a jump
+    cardFadeMs: 800,       // chapter title card fade in / out
+    cardDwellMs: 1800,     // chapter title card time on screen
     betweenScenesMs: 50,   // pause between consecutive scenes
 };
+
+// Which elements a color directive's `target` affects. Shared by the
+// directive itself and by stageStateAt, so the two can't disagree.
+const COLOR_TARGETS = {
+    screen: { background: ['screen'], text: ['screen'], transparentScreen: false },
+    background: { background: ['theatre'], text: ['theatre'], transparentScreen: false },
+    both: { background: ['theatre'], text: ['theatre', 'screen'], transparentScreen: true },
+};
+
+// "The Owl's Song!" -> "the-owls-song"
+function slugify(text) {
+    return String(text).toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
 
 class PlaybackCancelled extends Error {
     constructor() {
@@ -48,6 +65,9 @@ class SceneHandler {
         this.speedMultiplier = 1;
         this.token = new PlaybackToken();
         this.animations = new Map(); // DOM element -> interval id
+        this.chapters = [];
+        this.onChapterChange = null; // called with the chapter (or null) as playback enters it
+        this.lastChapter = undefined;
 
         // Scenes that ran before audio was enabled played silently, so replay.
         this.audioHandler.setAudioEnabledCallback(() => {
@@ -90,11 +110,17 @@ class SceneHandler {
 
     // Play `scenes` from `startIndex`, looping forever until stopped.
     // Any run already in progress is cancelled first.
-    async play(scenes, startIndex = 0, { reset = false } = {}) {
-        this.stop();
+    //   reset:   fade the stage out first (over resetMs, story time)
+    //   restore: set up the colours and background audio that the scenes
+    //            before startIndex would have left behind
+    async play(scenes, startIndex = 0, { reset = false, resetMs = DEFAULTS.resetMs, restore = false } = {}) {
+        // When resetting, let resetStage fade the audio out instead of cutting it
+        this.cancel({ keepAudio: reset });
         const token = this.token = new PlaybackToken();
 
         this.scenes = scenes || [];
+        this.chapters = SceneHandler.findChapters(this.scenes);
+        this.lastChapter = undefined;
         if (!this.scenes.length) {
             logger.warn('[Scene] No scenes to play');
             return;
@@ -103,7 +129,8 @@ class SceneHandler {
         this.audioHandler.checkAudioUsage(this.scenes);
 
         try {
-            if (reset) await this.resetStage(token);
+            if (reset) await this.resetStage(token, resetMs);
+            if (restore && startIndex > 0) this.restoreStateAt(startIndex, token);
 
             for (;;) {
                 if (this.currentSceneIndex >= this.scenes.length) {
@@ -111,6 +138,7 @@ class SceneHandler {
                     await this.resetStage(token);
                     this.currentSceneIndex = 0;
                 }
+                this.notifyChapter();
                 await this.processScene(this.scenes[this.currentSceneIndex], token);
                 await this.sleep(DEFAULTS.betweenScenesMs, token);
                 this.currentSceneIndex++;
@@ -124,22 +152,30 @@ class SceneHandler {
     // Remember where the story was launched from, so restarts go back there.
     start(scenes, startIndex = 0) {
         this.startIndex = startIndex;
-        return this.play(scenes, startIndex);
+        return this.play(scenes, startIndex, { restore: true });
     }
 
+    // Replay from the start of the current chapter, or from where the story
+    // was launched if it has no chapters.
     restart() {
-        return this.play(this.scenes, this.startIndex, { reset: true });
+        const chapter = this.currentChapter();
+        const index = chapter ? chapter.index : this.startIndex;
+        return this.play(this.scenes, index, { reset: true, restore: true });
     }
 
     stop() {
+        this.cancel();
+    }
+
+    cancel({ keepAudio = false } = {}) {
         this.token.cancel();
         this.stopAnimations();
-        this.audioHandler.stopAllTracks();
+        if (!keepAudio) this.audioHandler.stopAllTracks();
     }
 
     // Fade everything out and put the stage back to its stylesheet defaults.
-    async resetStage(token = this.token) {
-        const ms = this.scale(DEFAULTS.resetMs);
+    async resetStage(token = this.token, duration = DEFAULTS.resetMs) {
+        const ms = this.scale(duration);
         const stage = [this.screen, this.theatre];
 
         this.audioHandler.fadeOutAllTracks(ms);
@@ -157,6 +193,135 @@ class SceneHandler {
             opacity: '',
             transition: '',
         }));
+    }
+
+    // ---- Chapters ---------------------------------------------------------
+
+    // Chapters are { directive: "chapter", title } markers in the scene list.
+    // Returns [{ number (1-based), index (of the marker), title, id }].
+    static findChapters(scenes) {
+        const chapters = [];
+        (scenes || []).forEach((scene, index) => {
+            if (scene && scene.directive === 'chapter') {
+                const number = chapters.length + 1;
+                const title = scene.title || `Chapter ${number}`;
+                chapters.push({ number, index, title, id: scene.id || slugify(title) || String(number) });
+            }
+        });
+        return chapters;
+    }
+
+    // Look a chapter up by 1-based number ("2") or id ("the-owl").
+    static findChapter(chapters, key) {
+        if (key === null || key === undefined || key === '') return null;
+        const text = String(key).trim();
+        if (/^\d+$/.test(text)) return chapters[parseInt(text, 10) - 1] || null;
+        const id = slugify(text);
+        return chapters.find(chapter => chapter.id === id) || null;
+    }
+
+    // The chapter containing a scene index (null before the first chapter).
+    chapterAt(index) {
+        let found = null;
+        for (const chapter of this.chapters) {
+            if (chapter.index > index) break;
+            found = chapter;
+        }
+        return found;
+    }
+
+    currentChapter() {
+        return this.chapterAt(this.currentSceneIndex);
+    }
+
+    jumpToChapter(chapter) {
+        if (!chapter) return Promise.resolve();
+        logger.info(`[Scene] Jumping to chapter ${chapter.number}: ${chapter.title}`);
+        return this.play(this.scenes, chapter.index, { reset: true, resetMs: DEFAULTS.jumpMs, restore: true });
+    }
+
+    nextChapter() {
+        const current = this.currentChapter();
+        const next = this.chapters.find(chapter => chapter.index > (current ? current.index : -1));
+        return this.jumpToChapter(next);
+    }
+
+    // Like a music player: back to the start of this chapter, or, if we're
+    // still on its opening scenes, to the previous one.
+    previousChapter() {
+        const current = this.currentChapter();
+        if (!current) return this.jumpToChapter(this.chapters[0]);
+        const justStarted = this.currentSceneIndex <= current.index + 1;
+        const target = justStarted && current.number > 1 ? this.chapters[current.number - 2] : current;
+        return this.jumpToChapter(target);
+    }
+
+    notifyChapter() {
+        const chapter = this.currentChapter();
+        if (chapter === this.lastChapter) return;
+        this.lastChapter = chapter;
+        if (this.onChapterChange) this.onChapterChange(chapter);
+    }
+
+    // What the scenes before `index` leave behind: the final colours set by
+    // color directives, and the looping tracks that should still be playing.
+    // One-shot sounds and on-screen text are deliberately not replayed.
+    static stageStateAt(scenes, index) {
+        const colors = { theatre: {}, screen: {} };
+        let transparentScreen = false;
+        const tracks = new Map();
+
+        const cue = audio => {
+            if (!audio || !audio.trackId) return;
+            if (audio.loop && !audio.fadeOut) tracks.set(audio.trackId, audio);
+            else tracks.delete(audio.trackId); // fades out, or replaced by a one-shot
+        };
+
+        scenes.slice(0, index).forEach(scene => {
+            if (!scene) return;
+            switch (scene.directive) {
+                case 'color': {
+                    const targets = COLOR_TARGETS[scene.target] || COLOR_TARGETS.screen;
+                    if (scene.background) targets.background.forEach(t => { colors[t]['background-color'] = scene.background; });
+                    if (scene.text) targets.text.forEach(t => { colors[t].color = scene.text; });
+                    if (targets.transparentScreen) transparentScreen = true;
+                    break;
+                }
+                case 'stop_audio':
+                    if (scene.trackId) tracks.delete(scene.trackId);
+                    else tracks.clear();
+                    break;
+                case 'fade_audio':
+                    tracks.delete(scene.trackId);
+                    break;
+                case 'fade_all_audio':
+                    tracks.clear();
+                    break;
+                case undefined:
+                    cue(scene.arrive && scene.arrive.audio);
+                    cue(scene.depart && scene.depart.audio);
+                    break;
+                default:
+                    break;
+            }
+        });
+
+        return { colors, transparentScreen, tracks: Array.from(tracks.values()) };
+    }
+
+    // Apply stageStateAt instantly, so jumping into the middle of a story
+    // looks and sounds as if it had played up to that point.
+    restoreStateAt(index, token = this.token) {
+        const state = SceneHandler.stageStateAt(this.scenes, index);
+        const elements = { screen: this.screen, theatre: this.theatre };
+
+        if (state.transparentScreen) this.screen.css('background', 'transparent');
+        Object.entries(state.colors).forEach(([name, props]) => {
+            if (Object.keys(props).length) elements[name].css({ transition: 'none', ...props });
+        });
+        state.tracks.forEach(audio => {
+            this.playAudio({ ...audio, fadeIn: DEFAULTS.restoreFadeInMs }, token);
+        });
     }
 
     // ---- Scenes -----------------------------------------------------------
@@ -357,9 +522,22 @@ class SceneHandler {
             case 'fade_all_audio':
                 await this.audioHandler.fadeOutAllTracks(this.scale(scene.duration ?? DEFAULTS.audioFadeMs));
                 break;
+            case 'chapter':
+                if (scene.card) await this.showTitleCard(typeof scene.card === 'string' ? scene.card : scene.title, token);
+                break;
             default:
                 logger.warn(`[Scene] Unknown directive: ${scene.directive}`);
         }
+    }
+
+    // Fade a chapter title in, hold it, fade it out. Style it with .chapter-card.
+    async showTitleCard(text, token) {
+        if (!text) return;
+        const card = $('<div>').addClass('scene chapter-card').text(text).appendTo(this.screen);
+        await this.fade(card, 1, DEFAULTS.cardFadeMs, token, 0);
+        await this.sleep(DEFAULTS.cardDwellMs, token);
+        await this.fade(card, 0, DEFAULTS.cardFadeMs, token);
+        card.remove();
     }
 
     async fadeAll(duration = DEFAULTS.fadeAllMs, token) {
@@ -374,16 +552,12 @@ class SceneHandler {
     // target: "screen" (default) | "background" | "both"
     async changeColor(scene, token) {
         const ms = this.scale(scene.duration ?? DEFAULTS.colorMs);
-        let backgroundTargets = [this.screen];
-        let textTargets = [this.screen];
-        if (scene.target === 'background') {
-            backgroundTargets = textTargets = [this.theatre];
-        } else if (scene.target === 'both') {
-            // Colour the theatre and let it show through the screen
-            this.screen.css('background', 'transparent');
-            backgroundTargets = [this.theatre];
-            textTargets = [this.theatre, this.screen];
-        }
+        const targets = COLOR_TARGETS[scene.target] || COLOR_TARGETS.screen;
+        const elements = { screen: this.screen, theatre: this.theatre };
+        const backgroundTargets = targets.background.map(name => elements[name]);
+        const textTargets = targets.text.map(name => elements[name]);
+        // "both" colours the theatre and lets it show through the screen
+        if (targets.transparentScreen) this.screen.css('background', 'transparent');
 
         // Group changes per element: each element has a single `transition`
         // property, so setting it once per CSS property would cancel the others.

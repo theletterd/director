@@ -17,7 +17,8 @@ Add these to any story URL while authoring:
 
 | Option | Effect |
 |---|---|
-| `?start=N` | Start at scene N (0-based). Restarts also return here. |
+| `?chapter=C` | Start at a chapter, by number (`?chapter=2`) or id (`?chapter=the-owl`). |
+| `?start=N` | Start at scene N (0-based). |
 | `?speed=X` | Play X times faster, e.g. `?speed=4`. Applies to every duration, including audio fades. |
 | `?debug=1`…`3` | Log level: 1 info, 2 warn, 3 debug. Errors always log. |
 
@@ -49,6 +50,28 @@ make test      # pytest + jest
    ```
 
 Stories loop forever: after the last scene the stage fades out, resets, and starts again.
+
+## Chapters
+
+Mark where chapters begin with a `chapter` directive anywhere in the scene list:
+
+```javascript
+{ directive: "chapter", title: "The owl" }
+{ directive: "chapter", title: "Dawn", card: true }          // show the title on screen
+{ directive: "chapter", title: "Dawn", card: "Part Three" }  // or custom card text
+{ directive: "chapter", title: "The Owl's Song", id: "owl" } // id for ?chapter= (default: from the title)
+```
+
+A story with chapters gets:
+- **A chapter menu** in the bottom-left corner. It shows the current chapter; click it to jump to another.
+- **← / →** to skip to the previous or next chapter. ← restarts the current chapter if you're past its opening, like a music player.
+- **`?chapter=`** links straight to a chapter.
+
+Chapters are bookmarks: playback flows straight from one into the next.
+
+When playback starts mid-story (a chapter jump, `?chapter=` or `?start=`), Director first sets up what the earlier scenes would have left behind: the latest colours from `color` directives, and any looping audio that would still be playing. On-screen text and one-shot sounds aren't replayed. Clicking "Enable Audio" restarts the current chapter with sound.
+
+Title cards use the `.chapter-card` class, so a story's stylesheet can restyle them.
 
 ## Scenes
 
@@ -146,6 +169,7 @@ Starting a track that is already playing restarts it. Browsers block audio until
 | `stop_audio` | `trackId` (optional) | Stop one track, or all |
 | `fade_audio` | `trackId`, `duration` (2000), `wait_for_fade` | Fade out one track |
 | `fade_all_audio` | `duration` (2000) | Fade out every track, then continue |
+| `chapter` | `title`, `card`, `id` | Start a chapter (see [Chapters](#chapters)) |
 
 Any directive can also have a `dwell`.
 
@@ -167,7 +191,8 @@ Any directive can also have a `dwell`.
 | `app.py`, `configs/` | Flask app and story registry |
 | `templates/story.html` | Loads jQuery, the engine, the story, then `director.js` |
 | `static/js/assets/director.js` | Reads URL options, starts playback |
-| `static/js/assets/sceneHandler.js` | Plays scenes: transitions, directives, looping, cancellation |
+| `static/js/assets/sceneHandler.js` | Plays scenes: transitions, directives, looping, cancellation, chapters |
+| `static/js/assets/chapters.js` | Chapter menu and ←/→ keys |
 | `static/js/assets/audioHandler.js` | Web Audio playback, fades, the enable-audio button |
 | `static/js/assets/logger.js` | Level-filtered console logging |
 | `static/js/stories/` | The stories |

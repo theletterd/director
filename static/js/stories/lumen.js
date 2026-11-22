@@ -88,12 +88,14 @@ const animate = (frames, frameMs, { loops = 1, fadeMs = 600 } = {}) => ({
     dwell: frames.length * frameMs * loops,
     depart: { transition: 'fade', duration: fadeMs, remove: true },
 });
+const chapter = title => ({ directive: 'chapter', title, card: true });
 const sky = (background, text, duration, extra = {}) => ({
     directive: 'color', target: 'both', background, text, duration, async: true, ...extra,
 });
 
 const scenes = [
     // Dusk
+    chapter('Dusk'),
     { directive: 'blankline', dwell: 800 },
     sky('#e9b384', '#3b2a20', 5000),
     {
@@ -111,6 +113,7 @@ const scenes = [
     animate(driftFrames, 220),
 
     // Night
+    chapter('Night'),
     sky('#0e1726', '#c8d3de', 6000),
     {
         directive: 'blankline',
@@ -132,6 +135,7 @@ const scenes = [
     { directive: 'fade_all', duration: 1500 },
 
     // The owl
+    chapter('The owl'),
     {
         content: '"Who?" said the owl.',
         arrive: {
@@ -149,6 +153,7 @@ const scenes = [
     { directive: 'fade_all', duration: 1500 },
 
     // Keep blinking
+    chapter('Keep blinking'),
     say('So Lumen did the only thing a firefly can do.', { dwell: 1500 }),
     pause(300),
     say('She kept blinking.', { ms: 80, dwell: 1000, cursor: true }),
@@ -164,6 +169,7 @@ const scenes = [
     { directive: 'fade_all', duration: 2500 },
 
     // Dawn
+    chapter('Dawn'),
     { directive: 'fade_audio', trackId: 'crickets', duration: 6000 },
     sky('#f3d9b1', '#3a2e26', 7000, { async: false }),
     say('In the morning, nobody could say who had blinked first.', { dwell: 2000 }),
